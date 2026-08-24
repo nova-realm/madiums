@@ -3,6 +3,7 @@ export interface Config {
   footerAvatar: string;
   modmailName: string;
   modmailAvatar: string;
+  madiumWebsite?: string;
   madiumInvite: string;
   madiumSupportInvite: string;
 }

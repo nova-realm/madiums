@@ -72,7 +72,7 @@ export default function HomeCards({ config, qrCount }: Props) {
 
       <a href={config.madiumInvite} className="home-card" id="card-discord" target="_blank" rel="noopener noreferrer">
         <div className="home-card-icon">{DISCORD_SVG}</div>
-        <h3>Madium Discord</h3>
+        <h3>Madium Server</h3>
         <p>Join the main Madium community server.</p>
         <div className="home-card-arrow">
           <span>Open Discord</span>
