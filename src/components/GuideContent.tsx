@@ -124,23 +124,47 @@ export default function GuideContent({ qrs }: Props) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
 
-  // Sync hash / query on initial load
+  // Sync URL topic on initial load or popstate
   useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash.replace('#', '').toLowerCase();
-      const match = TOPICS.find((t) => t.key === hash);
-      if (match) {
-        setActiveTopic(match.key);
+    const parseUrl = () => {
+      // Check query param first: ?topic=...
+      const params = new URLSearchParams(window.location.search);
+      const queryTopic = params.get('topic')?.toLowerCase();
+      if (queryTopic) {
+        const match = TOPICS.find((t) => t.key === queryTopic);
+        if (match) {
+          setActiveTopic(match.key);
+          return;
+        }
       }
+
+      // Check hash if present
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (hash) {
+        const match = TOPICS.find((t) => t.key === hash);
+        if (match) {
+          setActiveTopic(match.key);
+          return;
+        }
+      }
+
+      // Default: Welcome & Mission overview
+      setActiveTopic('overview');
     };
-    handleHash();
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
+
+    parseUrl();
+    window.addEventListener('popstate', parseUrl);
+    window.addEventListener('hashchange', parseUrl);
+    return () => {
+      window.removeEventListener('popstate', parseUrl);
+      window.removeEventListener('hashchange', parseUrl);
+    };
   }, []);
 
   function switchTopic(key: GuideTopicKey) {
     setActiveTopic(key);
-    window.location.hash = key;
+    const newUrl = key === 'overview' ? '/guide' : `/guide?topic=${key}`;
+    window.history.pushState({ topic: key }, '', newUrl);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
