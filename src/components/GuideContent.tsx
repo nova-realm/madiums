@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { QR } from '@/lib/types';
 import { copyText } from '@/lib/clipboard';
 
@@ -67,33 +67,82 @@ const ALERT_SVG = (
   </svg>
 );
 
+const ARROW_RIGHT_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }} aria-hidden>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+    <polyline points="12 5 19 12 12 19"/>
+  </svg>
+);
+
+const ARROW_LEFT_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }} aria-hidden>
+    <line x1="19" y1="12" x2="5" y2="12"/>
+    <polyline points="12 19 5 12 12 5"/>
+  </svg>
+);
+
+export type GuideTopicKey =
+  | 'overview'
+  | 'roles'
+  | 'protocols'
+  | 'diagnostics'
+  | 'universal'
+  | 'cloudflare'
+  | 'antivirus'
+  | 'roblox'
+  | 'webview'
+  | 'dependencies'
+  | 'analysis';
+
+interface NavTopic {
+  key: GuideTopicKey;
+  title: string;
+  category: 'Overview' | 'Staff Roles' | 'Core Protocols' | 'Troubleshooting Guides';
+  roleColor?: 'trial' | 'support' | 'senior' | 'lead';
+}
+
+const TOPICS: NavTopic[] = [
+  { key: 'overview',     title: 'Welcome & Mission',           category: 'Overview' },
+  { key: 'roles',        title: 'Roles & Hierarchy',           category: 'Staff Roles' },
+  { key: 'protocols',    title: 'Rules, Bans & Security',      category: 'Core Protocols' },
+  { key: 'diagnostics',  title: 'Initial Diagnostic Questions', category: 'Troubleshooting Guides' },
+  { key: 'universal',    title: 'Universal Clean Fix',         category: 'Troubleshooting Guides' },
+  { key: 'cloudflare',   title: 'Network & Cloudflare WARP',   category: 'Troubleshooting Guides' },
+  { key: 'antivirus',    title: 'Antivirus & Firewall Rules',  category: 'Troubleshooting Guides' },
+  { key: 'roblox',       title: 'Roblox Crashes & Launchers',  category: 'Troubleshooting Guides' },
+  { key: 'webview',      title: 'WebView2 Corruptions',        category: 'Troubleshooting Guides' },
+  { key: 'dependencies', title: 'Required Dependencies',       category: 'Troubleshooting Guides' },
+  { key: 'analysis',     title: 'Generating Analysis Logs',    category: 'Troubleshooting Guides' },
+];
+
 interface Props {
   qrs: QR[];
 }
 
 export default function GuideContent({ qrs }: Props) {
-  const [activeSection, setActiveSection] = useState('welcome');
+  const [activeTopic, setActiveTopic] = useState<GuideTopicKey>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
 
-  // Scrollspy observer for headings
+  // Sync hash / query on initial load
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: '-80px 0px -60% 0px', threshold: 0.1 }
-    );
-
-    const sections = document.querySelectorAll('section[id], h2[id], h3[id]');
-    sections.forEach((s) => observer.observe(s));
-
-    return () => observer.disconnect();
+    const handleHash = () => {
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      const match = TOPICS.find((t) => t.key === hash);
+      if (match) {
+        setActiveTopic(match.key);
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
   }, []);
+
+  function switchTopic(key: GuideTopicKey) {
+    setActiveTopic(key);
+    window.location.hash = key;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   async function handleCopy(key: string, text: string) {
     const ok = await copyText(text);
@@ -110,19 +159,31 @@ export default function GuideContent({ qrs }: Props) {
     return map;
   }, [qrs]);
 
+  // Filtered navigation list
+  const filteredTopics = useMemo(() => {
+    if (!searchFilter.trim()) return TOPICS;
+    const q = searchFilter.toLowerCase();
+    return TOPICS.filter((t) => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q));
+  }, [searchFilter]);
+
+  // Current topic index for pagination
+  const currentIndex = TOPICS.findIndex((t) => t.key === activeTopic);
+  const prevTopic = currentIndex > 0 ? TOPICS[currentIndex - 1] : null;
+  const nextTopic = currentIndex < TOPICS.length - 1 ? TOPICS[currentIndex + 1] : null;
+
   return (
     <div className="doc-layout">
       {/* ── Left Sidebar Navigation ── */}
       <aside className="doc-sidebar">
         <div className="doc-sidebar-header">
-          <span className="doc-badge">Staff Handbook</span>
+          <span className="doc-badge">Handbook</span>
           <span className="doc-sidebar-title">Support Guide</span>
         </div>
 
         <div className="doc-sidebar-search">
           <input
             type="text"
-            placeholder="Search guide & fixes…"
+            placeholder="Filter guides…"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             className="doc-filter-input"
@@ -131,729 +192,752 @@ export default function GuideContent({ qrs }: Props) {
         </div>
 
         <nav className="doc-nav" aria-label="Support Guide Navigation">
+          {/* Overview Category */}
           <div className="doc-nav-group">
             <span className="doc-nav-heading">
               {BOOK_SVG} Overview
             </span>
-            <a
-              href="#welcome"
-              className={`doc-nav-link ${activeSection === 'welcome' ? 'active' : ''}`}
-            >
-              Welcome & Mission
-            </a>
-            <a
-              href="#roles-responsibilities"
-              className={`doc-nav-link ${activeSection === 'roles-responsibilities' ? 'active' : ''}`}
-            >
-              Roles & Hierarchy
-            </a>
+            {filteredTopics
+              .filter((t) => t.category === 'Overview')
+              .map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => switchTopic(t.key)}
+                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
+                >
+                  {t.title}
+                </button>
+              ))}
           </div>
 
+          {/* Staff Roles Category */}
           <div className="doc-nav-group">
             <span className="doc-nav-heading">
               {USERS_SVG} Staff Roles
             </span>
-            <a
-              href="#trial-support"
-              className={`doc-nav-link ${activeSection === 'trial-support' ? 'active' : ''}`}
-            >
-              <span className="role-dot trial" /> Trial Support
-            </a>
-            <a
-              href="#support-role"
-              className={`doc-nav-link ${activeSection === 'support-role' ? 'active' : ''}`}
-            >
-              <span className="role-dot support" /> Support
-            </a>
-            <a
-              href="#senior-support"
-              className={`doc-nav-link ${activeSection === 'senior-support' ? 'active' : ''}`}
-            >
-              <span className="role-dot senior" /> Senior Support
-            </a>
-            <a
-              href="#lead-support"
-              className={`doc-nav-link ${activeSection === 'lead-support' ? 'active' : ''}`}
-            >
-              <span className="role-dot lead" /> Operations Lead
-            </a>
+            {filteredTopics
+              .filter((t) => t.category === 'Staff Roles')
+              .map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => switchTopic(t.key)}
+                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
+                >
+                  {t.title}
+                </button>
+              ))}
           </div>
 
+          {/* Core Protocols */}
           <div className="doc-nav-group">
             <span className="doc-nav-heading">
               {SHIELD_SVG} Core Protocols
             </span>
-            <a
-              href="#ticket-triaging"
-              className={`doc-nav-link ${activeSection === 'ticket-triaging' ? 'active' : ''}`}
-            >
-              Ticket Triaging
-            </a>
-            <a
-              href="#rules-enforcement"
-              className={`doc-nav-link ${activeSection === 'rules-enforcement' ? 'active' : ''}`}
-            >
-              Rule Enforcement & Bans
-            </a>
-            <a
-              href="#external-fixes"
-              className={`doc-nav-link ${activeSection === 'external-fixes' ? 'active' : ''}`}
-            >
-              External Fixes & Safety
-            </a>
+            {filteredTopics
+              .filter((t) => t.category === 'Core Protocols')
+              .map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => switchTopic(t.key)}
+                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
+                >
+                  {t.title}
+                </button>
+              ))}
           </div>
 
+          {/* Troubleshooting Guides */}
           <div className="doc-nav-group">
             <span className="doc-nav-heading">
               {TOOL_SVG} Troubleshooting Guides
             </span>
-            <a
-              href="#diagnostic-questions"
-              className={`doc-nav-link ${activeSection === 'diagnostic-questions' ? 'active' : ''}`}
-            >
-              Initial Questions
-            </a>
-            <a
-              href="#universal-fix"
-              className={`doc-nav-link ${activeSection === 'universal-fix' ? 'active' : ''}`}
-            >
-              Universal Clean Fix
-            </a>
-            <a
-              href="#network-cloudflare"
-              className={`doc-nav-link ${activeSection === 'network-cloudflare' ? 'active' : ''}`}
-            >
-              Network & Cloudflare WARP
-            </a>
-            <a
-              href="#antivirus-firewall"
-              className={`doc-nav-link ${activeSection === 'antivirus-firewall' ? 'active' : ''}`}
-            >
-              Antivirus & Firewall Rules
-            </a>
-            <a
-              href="#roblox-launchers"
-              className={`doc-nav-link ${activeSection === 'roblox-launchers' ? 'active' : ''}`}
-            >
-              Roblox Crashes & Launchers
-            </a>
-            <a
-              href="#webview-corruption"
-              className={`doc-nav-link ${activeSection === 'webview-corruption' ? 'active' : ''}`}
-            >
-              WebView2 Corruptions
-            </a>
-            <a
-              href="#dependencies-guide"
-              className={`doc-nav-link ${activeSection === 'dependencies-guide' ? 'active' : ''}`}
-            >
-              Required Dependencies
-            </a>
-            <a
-              href="#analysis-logs"
-              className={`doc-nav-link ${activeSection === 'analysis-logs' ? 'active' : ''}`}
-            >
-              Generating Analysis Logs
-            </a>
+            {filteredTopics
+              .filter((t) => t.category === 'Troubleshooting Guides')
+              .map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => switchTopic(t.key)}
+                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
+                >
+                  {t.title}
+                </button>
+              ))}
           </div>
         </nav>
       </aside>
 
-      {/* ── Main Documentation Content ── */}
+      {/* ── Main Documentation Page Content ── */}
       <article className="doc-content">
-        {/* Header / Hero */}
-        <header className="doc-hero">
-          <span className="doc-pill">Staff Knowledge Base</span>
-          <h1 className="doc-title">Madium Support Guide</h1>
-          <p className="doc-subtitle">
-            Comprehensive manual for diagnosing user issues, ticket triaging workflows,
-            troubleshooting procedures, and team role expectations.
-          </p>
-
-          <div className="doc-tags">
-            <span className="doc-tag">Staff Only</span>
-            <span className="doc-tag">Protocols</span>
-            <span className="doc-tag">Quick Fixes</span>
-            <span className="doc-tag">Diagnostics</span>
-          </div>
-        </header>
-
-        {/* Feature Category Banner Cards (like the reference screenshot) */}
-        <div className="doc-category-cards">
-          <a href="#roles-responsibilities" className="doc-cat-card card-orange">
-            <div className="cat-card-icon">{USERS_SVG}</div>
-            <div className="cat-card-content">
-              <h3>Team Hierarchy</h3>
-              <p>Trial, Support, Senior UNCs, and Operations Lead expectations.</p>
-            </div>
-          </a>
-
-          <a href="#universal-fix" className="doc-cat-card card-purple">
-            <div className="cat-card-icon">{TOOL_SVG}</div>
-            <div className="cat-card-content">
-              <h3>Universal Fixes</h3>
-              <p>One-click clean reinstall, DeleteMadium batch, and resets.</p>
-            </div>
-          </a>
-
-          <a href="#network-cloudflare" className="doc-cat-card card-green">
-            <div className="cat-card-icon">{SHIELD_SVG}</div>
-            <div className="cat-card-content">
-              <h3>Network & Cloudflare</h3>
-              <p>Backend ratelimits, WARP routing, and connection bypasses.</p>
-            </div>
-          </a>
-        </div>
-
-        {/* ── SECTION 1: Introduction ── */}
-        <section id="welcome" className="doc-section">
-          <h2>Introduction</h2>
-          <div className="doc-prose">
-            <p className="lead-text">
-              <strong>Welcome to the Madium Support Team!</strong> As a support member,
-              you are one of our frontline soldiers for any technical challenges and inquiries.
-              Your role is vital in maintaining user satisfaction, trust, and software reliability.
-            </p>
-
-            <blockquote className="doc-quote-card">
-              <span className="quote-label">Our Mission</span>
-              <p>
-                &ldquo;Provide timely and professional support to members and users that exceeds their expectations
-                while maintaining our strict community standards.&rdquo;
+        {/* TOPIC 1: OVERVIEW */}
+        {activeTopic === 'overview' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Staff Knowledge Base</span>
+              <h1 className="doc-title">Welcome to Support</h1>
+              <p className="doc-subtitle">
+                Official handbook for diagnosing user issues, ticket triaging workflows,
+                and team role standards.
               </p>
-            </blockquote>
-          </div>
-        </section>
+            </header>
 
-        {/* ── SECTION 2: Roles & Responsibilities ── */}
-        <section id="roles-responsibilities" className="doc-section">
-          <h2>Roles & Responsibilities</h2>
-          <p className="doc-section-desc">
-            Understand your specific scope of authority, expectations, and escalation pathways.
-          </p>
+            <section className="doc-section">
+              <h2>Introduction &amp; Mission</h2>
+              <div className="doc-prose">
+                <p className="lead-text">
+                  <strong>Welcome to the Support Team!</strong> As a support member,
+                  you are one of our frontline soldiers for any technical challenges and inquiries.
+                  Your role is crucial in maintaining user satisfaction and experience.
+                </p>
 
-          <div className="roles-grid">
-            {/* Trial Support */}
-            <div id="trial-support" className="role-card card-trial">
-              <div className="role-card-header">
-                <div className="role-badge badge-trial">
-                  <span className="badge-dot" /> Trial Support
-                </div>
-                <span className="role-id">@Trial Support</span>
+                <blockquote className="doc-quote-card">
+                  <span className="quote-label">Our Mission</span>
+                  <p>
+                    &ldquo;Provide Timely &amp; Professional Support to Members &amp; Users that exceeds their expectations while maintaining our community standard.&rdquo;
+                  </p>
+                </blockquote>
               </div>
-              <p className="role-summary">
-                Supports under a trial learning phase. You will observe ticket handling, learn diagnostic procedures,
-                and resolve simple issues.
-              </p>
+            </section>
 
-              <h4>What We Expect From You:</h4>
-              <ul className="role-list">
+            {/* Quick Link Cards */}
+            <div className="doc-category-cards">
+              <button type="button" onClick={() => switchTopic('roles')} className="doc-cat-card">
+                <div className="cat-card-icon">{USERS_SVG}</div>
+                <div className="cat-card-content">
+                  <h3>Team Hierarchy</h3>
+                  <p>Trial, Support, Senior UNCs, and Lead Support expectations.</p>
+                </div>
+              </button>
+
+              <button type="button" onClick={() => switchTopic('universal')} className="doc-cat-card">
+                <div className="cat-card-icon">{TOOL_SVG}</div>
+                <div className="cat-card-content">
+                  <h3>Universal Fixes</h3>
+                  <p>One-click clean reinstall, DeleteMadium batch, and resets.</p>
+                </div>
+              </button>
+
+              <button type="button" onClick={() => switchTopic('cloudflare')} className="doc-cat-card">
+                <div className="cat-card-icon">{SHIELD_SVG}</div>
+                <div className="cat-card-content">
+                  <h3>Network &amp; Cloudflare</h3>
+                  <p>Backend ratelimits, WARP routing, and connection bypasses.</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TOPIC 2: ROLES & RESPONSIBILITIES */}
+        {activeTopic === 'roles' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Staff Structure</span>
+              <h1 className="doc-title">Roles &amp; Hierarchy</h1>
+              <p className="doc-subtitle">
+                Scope of authority, team expectations, and escalation pathways.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="roles-grid">
+                {/* Trial Support (Yellow) */}
+                <div className="role-card card-trial">
+                  <div className="role-card-header">
+                    <div className="role-badge badge-trial">
+                      <span className="badge-dot" /> Trial Support
+                    </div>
+                    <span className="role-id">@Trial Support</span>
+                  </div>
+                  <p className="role-summary">
+                    Supports under a trial phase, where you will learn how to diagnose and resolve issues faced by users.
+                  </p>
+
+                  <h4>What We Expect From You:</h4>
+                  <ul className="role-list">
+                    <li>
+                      <strong>Will to Learn &amp; Observe:</strong> You should be willing to learn and be open to any information given to you by a support or a senior.
+                    </li>
+                    <li>
+                      <strong>Ticket Observation:</strong> As you are a trial, <strong>you are not required to directly start doing tickets</strong>. You can watch your seniors or fellow supports and get comfortable with the fixes.
+                    </li>
+                    <li>
+                      <strong>Handle Simple Tickets:</strong> You may handle simple tickets, such as Network Errors and Unban/Appeal inquiries (where you will have to ping a moderator).
+                    </li>
+                    <li>
+                      <strong>Knowledge DB Familiarization:</strong> Get familiar with all the quick fixes, issues, and support documentation.
+                    </li>
+                    <li>
+                      <strong>Feedback:</strong> Always request and implement feedback.
+                    </li>
+                    <li>
+                      <strong className="highlight-text alert">Integrity:</strong> Uphold the highest level of integrity. Failing to do so will result in strikes or removal of roles.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Support (Orange) */}
+                <div className="role-card card-support">
+                  <div className="role-card-header">
+                    <div className="role-badge badge-support">
+                      <span className="badge-dot" /> Support Staff
+                    </div>
+                    <span className="role-id">@Support</span>
+                  </div>
+                  <p className="role-summary">
+                    The core of our support team. You are expected to handle the majority of tickets and be self-sufficient in diagnosing users&apos; issues.
+                  </p>
+
+                  <h4>What We Expect From You:</h4>
+                  <ul className="role-list">
+                    <li>
+                      <strong>Ticket Triaging:</strong> Quickly claim, assess, and solve tickets.
+                    </li>
+                    <li>
+                      <strong>Issue Diagnosing:</strong> Use the Support Doc and your experience to resolve common and new issues.
+                    </li>
+                    <li>
+                      <strong>User&apos;s Education:</strong> Guide users to self-help by navigating them through the <code>#quickfixes</code> channel.
+                    </li>
+                    <li>
+                      <strong className="highlight-text">Rule Enforcement:</strong> Act on rule violations. If a user is disrespectful, uncooperative, or breaking server rules, deny service and request a ban from a senior (in extreme cases).
+                    </li>
+                    <li>
+                      <strong>Support Docs:</strong> Contribute to the Support Database by adding new fixes or improvements (always verify with a Senior first).
+                    </li>
+                    <li>
+                      <strong>Team Collaboration:</strong> Help Trials when needed, becoming their teacher when seniors are not available.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Senior Support (Orange to Brown) */}
+                <div className="role-card card-senior">
+                  <div className="role-card-header">
+                    <div className="role-badge badge-senior">
+                      <span className="badge-dot" /> Senior Support
+                    </div>
+                    <span className="role-id">@Senior Support (UNCS)</span>
+                  </div>
+                  <p className="role-summary">
+                    The Seniors (UNCS) of the team. You are expected to handle the toughest issues, teach trials/supports, and ensure quality across the team.
+                  </p>
+
+                  <h4>What We Expect From You:</h4>
+                  <ul className="role-list">
+                    <li>
+                      <strong>Complex Issue Resolution:</strong> Handle and/or take over tickets escalated to you due to user sensitivity or technical difficulties.
+                    </li>
+                    <li>
+                      <strong>Mentorship:</strong> Train and guide Trials and Supports. Provide actionable feedback to help them improve.
+                    </li>
+                    <li>
+                      <strong>Quality Assurance:</strong> Review tickets to ensure compliance with staff guide and rules.
+                    </li>
+                    <li>
+                      <strong>Rule Enforcement Authority:</strong> Make decisions regarding whether users deserve a Blacklist/Ban and forward to a Lead or Manager for final approval.
+                    </li>
+                    <li>
+                      <strong>Bug Reporting:</strong> Actively report reproducible bugs directly to the dev team.
+                    </li>
+                    <li>
+                      <strong>Support Document Update:</strong> Actively review the support document, make necessary changes for new issues/bugs, and provide fixes.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Lead Support (Brown) */}
+                <div className="role-card card-lead">
+                  <div className="role-card-header">
+                    <div className="role-badge badge-lead">
+                      <span className="badge-dot" /> Lead Support
+                    </div>
+                    <span className="role-id">@Lead Support</span>
+                  </div>
+                  <p className="role-summary">
+                    The operational leader. You manage the team and act as a bridge between Management and Support.
+                  </p>
+
+                  <h4>What Is Expected From You:</h4>
+                  <ul className="role-list">
+                    <li>
+                      <strong>Team Oversight:</strong> Actively monitor team performance, active tickets, and response times.
+                    </li>
+                    <li>
+                      <strong>Onboarding:</strong> Lead the onboarding process for new trial supports.
+                    </li>
+                    <li>
+                      <strong>Team Morale:</strong> Foster a positive and collaborative team culture.
+                    </li>
+                    <li>
+                      <strong>Escalation Management:</strong> Manage Blacklist / Ban requests based on provided proof.
+                    </li>
+                    <li>
+                      <strong className="highlight-text alert">External Fix Approval:</strong> Review and approve any unofficial fixes (batch files) before they are distributed by team members. <strong>Do not allow unapproved fixes.</strong>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* TOPIC 3: CORE PROTOCOLS */}
+        {activeTopic === 'protocols' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Staff Standards</span>
+              <h1 className="doc-title">Core Protocols &amp; Rules</h1>
+              <p className="doc-subtitle">
+                Rules of conduct, blacklisting thresholds, and file distribution security.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="callout callout-important">
+                <div className="callout-icon">{ALERT_SVG}</div>
+                <div className="callout-body">
+                  <h4>Golden Rule of Support</h4>
+                  <p>
+                    Never ask users for sensitive personal information, passwords, or security keys.
+                    Only distribute verified batch files hosted on approved domains.
+                  </p>
+                </div>
+              </div>
+
+              <h3>Rules, Strikes &amp; Blacklisting</h3>
+              <p className="doc-p">
+                Support staff have the right to close tickets and deny service under the following conditions:
+              </p>
+              <ul className="doc-checklist">
                 <li>
-                  <strong>Will to Learn & Observe:</strong> Be open to feedback and absorb advice given by Seniors and Leads.
+                  <strong>Abusive / Toxic Behavior:</strong> Users insulting staff or screaming in caps should be given 1 warning.
+                  If continued, close the ticket with a note and report to a Senior for a server mute/ban.
                 </li>
                 <li>
-                  <strong>Ticket Observation:</strong> You are <em>not required to immediately triage complex tickets</em>.
-                  Shadow seniors, read the macros, and get comfortable with standard fixes.
+                  <strong>Link Bypassing / Ad Fraud:</strong> If a user admits to bypassing monetized download links or demands support
+                  after bypassing, use the <code>bypasser</code> quick reply and deny support.
                 </li>
                 <li>
-                  <strong>Handle Simple Tickets:</strong> Address basic network errors, simple exclusions, and appeal inquiries (pinging a moderator).
-                </li>
-                <li>
-                  <strong>Knowledge DB Familiarization:</strong> Master all quick replies, troubleshooting macros, and documentation.
-                </li>
-                <li>
-                  <strong>Feedback Implementation:</strong> Actively request feedback from seniors after resolving tickets.
-                </li>
-                <li>
-                  <strong className="highlight-text alert">Integrity:</strong> Uphold the highest level of honesty and professionalism.
-                  Failing to do so results in immediate strikes or role removal.
+                  <strong>Inactivity (10 Minute Rule):</strong> Use the <code>?</code> quick reply. If no response is received within 10 minutes,
+                  the ticket can be safely closed.
                 </li>
               </ul>
-            </div>
 
-            {/* Support */}
-            <div id="support-role" className="role-card card-support">
-              <div className="role-card-header">
-                <div className="role-badge badge-support">
-                  <span className="badge-dot" /> Support Staff
+              <h3>External Fixes &amp; Batch File Security</h3>
+              <div className="callout callout-warning">
+                <div className="callout-icon">{SHIELD_SVG}</div>
+                <div className="callout-body">
+                  <h4>Strict Security Directive</h4>
+                  <p>
+                    <strong>Do NOT distribute custom .bat, .exe, or .ps1 files created by yourself or third parties</strong> unless
+                    they are listed in the official quick reply database or explicitly signed off by a Lead Support.
+                  </p>
                 </div>
-                <span className="role-id">@Support</span>
               </div>
-              <p className="role-summary">
-                The core backbone of our team. Expected to handle the majority of incoming tickets and be self-sufficient
-                in diagnosing technical problems.
+            </section>
+          </div>
+        )}
+
+        {/* TOPIC 4: DIAGNOSTIC QUESTIONS */}
+        {activeTopic === 'diagnostics' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Step 1: Diagnostics</span>
+              <h1 className="doc-title">Initial Diagnostic Questions</h1>
+              <p className="doc-subtitle">
+                Standard questions to ask when diagnosing unknown technical issues.
               </p>
+            </header>
 
-              <h4>What We Expect From You:</h4>
-              <ul className="role-list">
-                <li>
-                  <strong>Ticket Triaging:</strong> Promptly claim, diagnose, and resolve user tickets.
-                </li>
-                <li>
-                  <strong>Issue Diagnosing:</strong> Use the support docs, diagnostic questions, and log analysis to identify root causes.
-                </li>
-                <li>
-                  <strong>User Education:</strong> Guide users to self-help resources in the <code>#quickfixes</code> channel.
-                </li>
-                <li>
-                  <strong className="highlight-text">Rule Enforcement:</strong> Act firmly on rule violations. If a user is disrespectful,
-                  uncooperative, or abusive, deny service and request a ban/blacklist from a Senior.
-                </li>
-                <li>
-                  <strong>Support Docs Contributions:</strong> Propose improvements and new macros for the support database (always verify with a Senior first).
-                </li>
-                <li>
-                  <strong>Team Collaboration:</strong> Assist and mentor Trial Supports when seniors are occupied.
-                </li>
-              </ul>
-            </div>
-
-            {/* Senior Support */}
-            <div id="senior-support" className="role-card card-senior">
-              <div className="role-card-header">
-                <div className="role-badge badge-senior">
-                  <span className="badge-dot" /> Senior Support
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: ask</span>
+                  <h3>Diagnostic Questionnaire</h3>
                 </div>
-                <span className="role-id">@Senior Support (UNCs)</span>
-              </div>
-              <p className="role-summary">
-                The technical veterans of the team. Seniors tackle escalated tickets, train trials/staff, and maintain overall service quality.
-              </p>
-
-              <h4>What We Expect From You:</h4>
-              <ul className="role-list">
-                <li>
-                  <strong>Complex Issue Resolution:</strong> Take over difficult tickets requiring custom batch fixes, DLL debugging, or sensitive handling.
-                </li>
-                <li>
-                  <strong>Mentorship & Training:</strong> Actively review trial tickets, provide constructive feedback, and guide staff progression.
-                </li>
-                <li>
-                  <strong>Quality Assurance:</strong> Monitor ongoing ticket interactions to ensure compliance with community guidelines.
-                </li>
-                <li>
-                  <strong>Rule Enforcement Authority:</strong> Authorize Blacklist and Ban decisions, forwarding evidence to Management for final logging.
-                </li>
-                <li>
-                  <strong>Bug Reporting:</strong> Document and report reproducible client bugs directly to the development team.
-                </li>
-                <li>
-                  <strong>Documentation Maintenance:</strong> Regularly update fix steps and macros as new Roblox/Madium updates deploy.
-                </li>
-              </ul>
-            </div>
-
-            {/* Operations Lead */}
-            <div id="lead-support" className="role-card card-lead">
-              <div className="role-card-header">
-                <div className="role-badge badge-lead">
-                  <span className="badge-dot" /> Operations Lead
-                </div>
-                <span className="role-id">@Support Lead</span>
-              </div>
-              <p className="role-summary">
-                The operational leadership bridging Management and the Support Team. Oversees performance, escalations, and fix integrity.
-              </p>
-
-              <h4>What We Expect From You:</h4>
-              <ul className="role-list">
-                <li>
-                  <strong>Team Oversight:</strong> Monitor response times, active ticket queues, and staff attendance.
-                </li>
-                <li>
-                  <strong>Onboarding:</strong> Direct the trial onboarding pipeline and promote qualifying members.
-                </li>
-                <li>
-                  <strong>Team Morale & Culture:</strong> Foster a positive, collaborative, and communicative team environment.
-                </li>
-                <li>
-                  <strong>Escalation Management:</strong> Review submitted evidence and execute permanent Blacklist / Ban decisions.
-                </li>
-                <li>
-                  <strong className="highlight-text alert">External Fix Approval:</strong> Review and verify every unofficial fix, script,
-                  or batch file before distribution. <span className="underline">Strictly prohibit unapproved external files.</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 3: Core Protocols ── */}
-        <section id="ticket-triaging" className="doc-section">
-          <h2>Core Protocols & Standards</h2>
-
-          <div className="callout callout-important">
-            <div className="callout-icon">{ALERT_SVG}</div>
-            <div className="callout-body">
-              <h4>Golden Rule of Support</h4>
-              <p>
-                Never ask users for sensitive personal information, passwords, or security keys.
-                Only distribute verified batch files hosted on approved domains.
-              </p>
-            </div>
-          </div>
-
-          <h3 id="rules-enforcement">Rules, Strikes & Blacklisting</h3>
-          <p className="doc-p">
-            Support staff have the right to close tickets and deny service under the following conditions:
-          </p>
-          <ul className="doc-checklist">
-            <li>
-              <strong>Abusive / Toxic Behavior:</strong> Users insulting staff or screaming in caps should be given 1 warning.
-              If continued, close the ticket with a note and report to a Senior for a server mute/ban.
-            </li>
-            <li>
-              <strong>Link Bypassing / Ad Fraud:</strong> If a user admits to bypassing monetized download links or demands support
-              after bypassing, use the <code>bypasser</code> quick reply and deny support.
-            </li>
-            <li>
-              <strong>Inactivity (10 Minute Rule):</strong> Use the <code>?</code> quick reply. If no response is received within 10 minutes,
-              the ticket can be safely closed.
-            </li>
-          </ul>
-
-          <h3 id="external-fixes">External Fixes & Batch File Security</h3>
-          <div className="callout callout-warning">
-            <div className="callout-icon">{SHIELD_SVG}</div>
-            <div className="callout-body">
-              <h4>Strict Security Directive</h4>
-              <p>
-                <strong>Do NOT distribute custom .bat, .exe, or .ps1 files created by yourself or third parties</strong> unless
-                they are listed in the official quick reply database or explicitly signed off by an Operations Lead.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SECTION 4: Troubleshooting Playbooks ── */}
-        <section id="troubleshooting-guides" className="doc-section">
-          <h2>Troubleshooting Playbooks</h2>
-          <p className="doc-section-desc">
-            Standard operating procedures for resolving the most frequent technical problems.
-          </p>
-
-          {/* Diagnostic Questions */}
-          <div id="diagnostic-questions" className="playbook-card">
-            <div className="playbook-header">
-              <span className="playbook-badge">Step 1: Diagnostics</span>
-              <h3>Initial Triage Questions</h3>
-            </div>
-            <p>
-              Before guessing fixes, always send the standard diagnostic questions (Macro: <code>ask</code>) to gather essential system context:
-            </p>
-            <div className="code-block-wrap">
-              <pre className="code-snippet">
+                <p>
+                  Before guessing fixes, always send the standard diagnostic questions (Macro: <code>ask</code>) to gather essential system context:
+                </p>
+                <div className="code-block-wrap">
+                  <pre className="code-snippet">
 {`1. Is your Windows user account an Administrator?
 2. Do you know what an Antivirus Exclusion is? Have you added Madium?
 3. When clicking "Attach", is Roblox open or closed? Are you using default Roblox, Fishstrap, or Froststrap?
 4. Do you have third-party antivirus software installed (Kaspersky, McAfee, Malwarebytes, Norton)?`}
-              </pre>
-              <button
-                className="code-copy-btn"
-                onClick={() => handleCopy('ask', qrMap.get('ask')?.text || '')}
-              >
-                {copiedKey === 'ask' ? CHECK_SVG : COPY_SVG} {copiedKey === 'ask' ? 'Copied' : 'Copy Macro'}
-              </button>
-            </div>
+                  </pre>
+                  <button
+                    type="button"
+                    className="code-copy-btn"
+                    onClick={() => handleCopy('ask', qrMap.get('ask')?.text || '')}
+                  >
+                    {copiedKey === 'ask' ? CHECK_SVG : COPY_SVG} {copiedKey === 'ask' ? 'Copied' : 'Copy Macro'}
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
+        )}
 
-          {/* Universal Clean Reinstall */}
-          <div id="universal-fix" className="playbook-card">
-            <div className="playbook-header">
-              <span className="playbook-badge">Universal Procedure</span>
-              <h3>Universal Clean Fix & Reset</h3>
-            </div>
-            <p>
-              When a user experiences persistent injector failures, corrupted configs, or unknown crashes:
-            </p>
-            <ol className="step-list">
-              <li>Ensure all Roblox and Madium processes are fully closed in Task Manager.</li>
-              <li>
-                Download and run the official <strong>DeleteMadium.bat</strong> cleaner:
-                <br />
-                <a
-                  href="https://cdn.discordapp.com/attachments/1486055444223885375/1525183311784312953/DeleteMadium.bat"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="doc-resource-link"
-                >
-                  DeleteMadium.bat {EXT_SVG}
-                </a>
-                <span className="text-muted"> (Warn user: saves/tabs in editor will be cleared).</span>
-              </li>
-              <li>Temporarily disable third-party antivirus shields or add folder exclusions.</li>
-              <li>Run the <strong>Madium Bootstrapper</strong> as Administrator.</li>
-            </ol>
+        {/* TOPIC 5: UNIVERSAL CLEAN FIX */}
+        {activeTopic === 'universal' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Universal Procedure</span>
+              <h1 className="doc-title">Universal Clean Fix &amp; Reset</h1>
+              <p className="doc-subtitle">
+                Fresh reset procedure for resolving persistent injector failures and corruptions.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: universal</span>
+                  <h3>Clean Reinstallation Steps</h3>
+                </div>
+                <p>
+                  When a user experiences persistent injector failures, corrupted configs, or unknown crashes:
+                </p>
+                <ol className="step-list">
+                  <li>Ensure all Roblox and Madium processes are fully closed in Task Manager.</li>
+                  <li>
+                    Download and run the official <strong>DeleteMadium.bat</strong> cleaner:
+                    <br />
+                    <a
+                      href="https://cdn.discordapp.com/attachments/1486055444223885375/1525183311784312953/DeleteMadium.bat"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="doc-resource-link"
+                    >
+                      DeleteMadium.bat {EXT_SVG}
+                    </a>
+                    <span className="text-muted"> (Warn user: saves and tabs in editor will be reset).</span>
+                  </li>
+                  <li>Temporarily disable third-party antivirus shields or add folder exclusions.</li>
+                  <li>Run the <strong>Madium Bootstrapper</strong> as Administrator.</li>
+                </ol>
+              </div>
+            </section>
           </div>
+        )}
 
-          {/* Network & Cloudflare WARP */}
-          <div id="network-cloudflare" className="playbook-card highlight-card">
-            <div className="playbook-header">
-              <span className="playbook-badge cf-badge">Network & Routing</span>
-              <h3>Network Errors, Backend Ratelimits & Cloudflare WARP</h3>
-            </div>
-            <p>
-              If a user gets connection timeouts, backend ratelimits, key system failure, or ISP routing blocks:
-            </p>
+        {/* TOPIC 6: CLOUDFLARE WARP */}
+        {activeTopic === 'cloudflare' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Network &amp; Routing</span>
+              <h1 className="doc-title">Network Errors &amp; Cloudflare WARP</h1>
+              <p className="doc-subtitle">
+                Resolve connection timeouts, backend ratelimits, and ISP routing blocks.
+              </p>
+            </header>
 
-            <div className="cloudflare-feature-box">
-              <div className="cf-box-header">
-                <div className="cf-title-wrap">
-                  {CLOUDFLARE_SVG}
-                  <div>
-                    <h4>Recommended Solution: Cloudflare WARP</h4>
-                    <span className="cf-sub">1.1.1.1 DNS & Private Routing Layer</span>
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: vpn</span>
+                  <h3>Cloudflare WARP (1.1.1.1) Solution</h3>
+                </div>
+                <p>
+                  If a user encounters network errors, key system ratelimits, or ISP blocking:
+                </p>
+
+                <div className="cloudflare-feature-box">
+                  <div className="cf-box-header">
+                    <div className="cf-title-wrap">
+                      {CLOUDFLARE_SVG}
+                      <div>
+                        <h4>Recommended Solution: Cloudflare WARP</h4>
+                        <span className="cf-sub">1.1.1.1 DNS &amp; Private Routing Layer</span>
+                      </div>
+                    </div>
+                    <a
+                      href="https://one.one.one.one/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cloudflare-action-link"
+                    >
+                      {CLOUDFLARE_SVG} Download Cloudflare WARP (1.1.1.1) {EXT_SVG}
+                    </a>
+                  </div>
+
+                  <ol className="step-list">
+                    <li>
+                      Direct the user to install{' '}
+                      <a
+                        href="https://one.one.one.one/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cf-inline-link"
+                      >
+                        {CLOUDFLARE_SVG} Cloudflare WARP (1.1.1.1)
+                      </a>
+                      .
+                    </li>
+                    <li>Launch the installer and select <strong>Private Browsing</strong>.</li>
+                    <li>Toggle the switch to <strong>Connected</strong>.</li>
+                    <li>Relaunch Madium and attempt attaching again.</li>
+                  </ol>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* TOPIC 7: ANTIVIRUS & FIREWALL */}
+        {activeTopic === 'antivirus' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Windows Security</span>
+              <h1 className="doc-title">Antivirus &amp; Firewall Rules</h1>
+              <p className="doc-subtitle">
+                Set up required exclusion paths and Windows Defender socket rules.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: exclude / firewall</span>
+                  <h3>3 Mandatory Exclusion Folders</h3>
+                </div>
+                <p>
+                  Windows Defender frequently blocks or quarantines injector DLLs. Have users add these 3 folders:
+                </p>
+
+                <div className="exclusions-grid">
+                  <div className="ex-item">
+                    <span className="ex-label">Exclusion 1: Downloads</span>
+                    <code>C:/Users/%username%/Downloads</code>
+                  </div>
+                  <div className="ex-item">
+                    <span className="ex-label">Exclusion 2: Binaries</span>
+                    <code>%LocalAppData%/Madium/Bin</code>
+                  </div>
+                  <div className="ex-item">
+                    <span className="ex-label">Exclusion 3: Temp Cache</span>
+                    <code>%temp%</code>
                   </div>
                 </div>
-                <a
-                  href="https://one.one.one.one/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="cloudflare-action-link"
-                >
-                  {CLOUDFLARE_SVG} Download Cloudflare WARP (1.1.1.1) {EXT_SVG}
-                </a>
-              </div>
 
-              <ol className="step-list">
-                <li>
-                  Direct the user to install{' '}
-                  <a
-                    href="https://one.one.one.one/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="cf-inline-link"
-                  >
-                    {CLOUDFLARE_SVG} Cloudflare WARP (1.1.1.1)
-                  </a>
-                  .
-                </li>
-                <li>Launch the installer and select <strong>Private Browsing</strong> (or UPD mode).</li>
-                <li>Toggle the switch to <strong>Connected</strong>.</li>
-                <li>Relaunch Madium and attempt attaching again.</li>
-              </ol>
-            </div>
+                <div className="callout callout-tip" style={{ marginTop: 14 }}>
+                  <div className="callout-icon">{ALERT_SVG}</div>
+                  <div className="callout-body">
+                    <h4>Firewall Inbound &amp; Outbound Rules</h4>
+                    <p>
+                      For persistent socket blocks, add Inbound and Outbound rules in Windows Defender Firewall for:
+                      <br />
+                      <code>AppData\Roaming\Madium\Bin\Loader.exe</code> and <code>Madium.exe</code>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
+        )}
 
-          {/* Antivirus & Firewall */}
-          <div id="antivirus-firewall" className="playbook-card">
-            <div className="playbook-header">
-              <span className="playbook-badge">Windows Security</span>
-              <h3>Antivirus & Firewall Exclusions</h3>
-            </div>
-            <p>
-              Windows Defender frequently blocks or quarantines injector DLLs without notification.
-              Staff should instruct users to add the following 3 exclusion folders:
-            </p>
+        {/* TOPIC 8: ROBLOX CRASHES & LAUNCHERS */}
+        {activeTopic === 'roblox' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Client Crashes</span>
+              <h1 className="doc-title">Roblox Crashes &amp; Launchers</h1>
+              <p className="doc-subtitle">
+                Resolve immediate crash-on-inject and test alternative custom launchers.
+              </p>
+            </header>
 
-            <div className="exclusions-grid">
-              <div className="ex-item">
-                <span className="ex-label">Exclusion 1: Downloads</span>
-                <code>C:/Users/%username%/Downloads</code>
-              </div>
-              <div className="ex-item">
-                <span className="ex-label">Exclusion 2: Binaries</span>
-                <code>%LocalAppData%/Madium/Bin</code>
-              </div>
-              <div className="ex-item">
-                <span className="ex-label">Exclusion 3: Temp Cache</span>
-                <code>%temp%</code>
-              </div>
-            </div>
-
-            <div className="callout callout-tip" style={{ marginTop: 14 }}>
-              <div className="callout-icon">{ALERT_SVG}</div>
-              <div className="callout-body">
-                <h4>Firewall Inbound & Outbound Rules</h4>
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: testqr / alt</span>
+                  <h3>Crash Troubleshooting Steps</h3>
+                </div>
                 <p>
-                  For persistent socket blocks, add Inbound and Outbound rules in Windows Defender Firewall for:
-                  <br />
-                  <code>AppData\Roaming\Madium\Bin\Loader.exe</code> and <code>Madium.exe</code>
+                  If Roblox closes immediately on injection or displays <em>&ldquo;Dll disconnected&rdquo;</em>:
                 </p>
+                <ul className="step-list">
+                  <li>
+                    <strong>Restart first:</strong> A standard PC restart clears hanging hook threads in Roblox.
+                  </li>
+                  <li>
+                    <strong>Inject sequence:</strong> Close both Roblox and Madium. Open Roblox first, disable Auto-Attach in Madium settings, then manually click Inject.
+                  </li>
+                  <li>
+                    <strong>Client Instance Injection:</strong> Tell the user to inject from the <em>&ldquo;Client&rdquo;</em> or <em>&ldquo;Roblox Instances&rdquo;</em> button rather than editor.
+                  </li>
+                  <li>
+                    <strong>Alternative Launchers:</strong> If standard Roblox crashes, test with alternative wrappers:
+                    <div className="launcher-links">
+                      <a href="https://github.com/fishstrap/fishstrap" target="_blank" rel="noopener noreferrer" className="launcher-pill">
+                        Fishstrap {EXT_SVG}
+                      </a>
+                      <a href="https://github.com/Froststrap/Froststrap" target="_blank" rel="noopener noreferrer" className="launcher-pill">
+                        Froststrap {EXT_SVG}
+                      </a>
+                      <a href="https://github.com/voidstrap/Voidstrap/releases" target="_blank" rel="noopener noreferrer" className="launcher-pill">
+                        Voidstrap {EXT_SVG}
+                      </a>
+                    </div>
+                  </li>
+                </ul>
               </div>
-            </div>
+            </section>
           </div>
+        )}
 
-          {/* Roblox Crashes & Custom Launchers */}
-          <div id="roblox-launchers" className="playbook-card">
-            <div className="playbook-header">
-              <span className="playbook-badge">Client Crashes</span>
-              <h3>Roblox Crashes & Alternative Launchers</h3>
-            </div>
-            <p>
-              If Roblox closes immediately on injection (or displays <em>&ldquo;Dll disconnected&rdquo;</em>):
-            </p>
-            <ul className="step-list">
-              <li>
-                <strong>Restart first:</strong> A standard PC restart clears hanging hook threads in Roblox.
-              </li>
-              <li>
-                <strong>Inject sequence:</strong> Close both Roblox and Madium. Open Roblox first, disable Auto-Attach in Madium settings, then manually click Inject.
-              </li>
-              <li>
-                <strong>Client Instance Injection:</strong> Tell the user to inject from the <em>&ldquo;Client&rdquo;</em> or <em>&ldquo;Roblox Instances&rdquo;</em> button rather than editor.
-              </li>
-              <li>
-                <strong>Alternative Launchers:</strong> If standard Roblox launcher crashes, test with alternative wrappers:
-                <div className="launcher-links">
-                  <a href="https://github.com/fishstrap/fishstrap" target="_blank" rel="noopener noreferrer" className="launcher-pill">
-                    Fishstrap {EXT_SVG}
+        {/* TOPIC 9: WEBVIEW2 CORRUPTION */}
+        {activeTopic === 'webview' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">UI Renderer</span>
+              <h1 className="doc-title">WebView2 Corruptions</h1>
+              <p className="doc-subtitle">
+                Fix blank white or black screens caused by corrupted Microsoft WebView2 runtimes.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: webview</span>
+                  <h3>Edge / WebView2 Folder Copy Fix</h3>
+                </div>
+                <p>
+                  If the Madium UI opens as a blank white/black window or displays a WebView error:
+                </p>
+                <ol className="step-list">
+                  <li>Navigate to: <code>C:\Program Files (x86)\Microsoft</code></li>
+                  <li>Delete the folder named <code>EdgeWebView</code>.</li>
+                  <li>Copy the existing <code>Edge</code> folder in the same directory (creating <code>Edge - Copy</code>).</li>
+                  <li>Rename <code>Edge - Copy</code> to <code>EdgeWebView</code>.</li>
+                  <li>Relaunch Madium.</li>
+                </ol>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* TOPIC 10: REQUIRED DEPENDENCIES */}
+        {activeTopic === 'dependencies' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Runtimes</span>
+              <h1 className="doc-title">Required Dependencies</h1>
+              <p className="doc-subtitle">
+                Official download links for all required Visual C++, .NET, and DirectX runtimes.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: dep</span>
+                  <h3>Official Microsoft Runtimes</h3>
+                </div>
+                <p>
+                  Ensure all prerequisite Microsoft runtimes are installed on the user&apos;s machine:
+                </p>
+                <div className="dep-grid">
+                  <a href="https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.27/windowsdesktop-runtime-8.0.27-win-x64.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
+                    .NET Runtime 8.0 (x64) {EXT_SVG}
                   </a>
-                  <a href="https://github.com/Froststrap/Froststrap" target="_blank" rel="noopener noreferrer" className="launcher-pill">
-                    Froststrap {EXT_SVG}
+                  <a href="https://aka.ms/vc14/vc_redist.x64.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
+                    Visual C++ 2015-2022 (x64) {EXT_SVG}
                   </a>
-                  <a href="https://github.com/voidstrap/Voidstrap/releases" target="_blank" rel="noopener noreferrer" className="launcher-pill">
-                    Voidstrap {EXT_SVG}
+                  <a href="https://aka.ms/vc14/vc_redist.x86.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
+                    Visual C++ 2015-2022 (x86) {EXT_SVG}
+                  </a>
+                  <a href="https://go.microsoft.com/fwlink/?linkid=2124701" target="_blank" rel="noopener noreferrer" className="dep-link">
+                    Microsoft Edge WebView2 Runtime {EXT_SVG}
+                  </a>
+                  <a href="https://download.microsoft.com/download/1/7/1/1718ccc4-6315-4d8e-9543-8e28a4e18c4c/dxwebsetup.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
+                    DirectX End-User Runtime {EXT_SVG}
                   </a>
                 </div>
-              </li>
-            </ul>
+                <p className="doc-subnote" style={{ marginTop: 10 }}>
+                  <strong>DirectX Installation Note:</strong> Uncheck &ldquo;Install Bing Bar&rdquo; during setup, then restart the PC after completion.
+                </p>
+              </div>
+            </section>
           </div>
+        )}
 
-          {/* WebView2 Corruptions */}
-          <div id="webview-corruption" className="playbook-card">
-            <div className="playbook-header">
-              <span className="playbook-badge">UI Renderer</span>
-              <h3>WebView2 Corrupted Files & White Screen Fix</h3>
-            </div>
-            <p>
-              If the Madium UI opens as a blank white/black window or displays a WebView error:
-            </p>
-            <ol className="step-list">
-              <li>Navigate to: <code>C:\Program Files (x86)\Microsoft</code></li>
-              <li>Delete the folder named <code>EdgeWebView</code>.</li>
-              <li>Copy the existing <code>Edge</code> folder in the same directory (creating <code>Edge - Copy</code>).</li>
-              <li>Rename <code>Edge - Copy</code> to <code>EdgeWebView</code>.</li>
-              <li>Relaunch Madium.</li>
-            </ol>
+        {/* TOPIC 11: ANALYSIS LOGS */}
+        {activeTopic === 'analysis' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Escalations</span>
+              <h1 className="doc-title">Generating Analysis Logs</h1>
+              <p className="doc-subtitle">
+                How to gather detailed crash dumps and diagnostic logs for developer escalation.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: anal</span>
+                  <h3>Log Collection Procedure</h3>
+                </div>
+                <p>
+                  When an issue is unresolvable through standard fixes, request an analysis log:
+                </p>
+                <ol className="step-list">
+                  <li>
+                    Provide the user with the official analysis script:{' '}
+                    <a
+                      href="https://cdn.discordapp.com/attachments/1486055444223885375/1521271601583362201/analysis.bat"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="doc-resource-link"
+                    >
+                      analysis.bat {EXT_SVG}
+                    </a>
+                  </li>
+                  <li>Ask the user to double click and run <code>analysis.bat</code>.</li>
+                  <li>Retrieve the generated <code>Madium_Analysis.txt</code> from their Desktop and forward to Senior Support / Devs.</li>
+                </ol>
+              </div>
+            </section>
           </div>
+        )}
 
-          {/* Dependencies */}
-          <div id="dependencies-guide" className="playbook-card">
-            <div className="playbook-header">
-              <span className="playbook-badge">Runtimes</span>
-              <h3>Required Visual C++ & .NET Dependencies</h3>
-            </div>
-            <p>
-              Ensure all prerequisite Microsoft runtimes are installed on the user&apos;s machine:
-            </p>
-            <div className="dep-grid">
-              <a href="https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.27/windowsdesktop-runtime-8.0.27-win-x64.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
-                .NET Runtime 8.0 (x64) {EXT_SVG}
-              </a>
-              <a href="https://aka.ms/vc14/vc_redist.x64.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
-                Visual C++ 2015-2022 (x64) {EXT_SVG}
-              </a>
-              <a href="https://aka.ms/vc14/vc_redist.x86.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
-                Visual C++ 2015-2022 (x86) {EXT_SVG}
-              </a>
-              <a href="https://go.microsoft.com/fwlink/?linkid=2124701" target="_blank" rel="noopener noreferrer" className="dep-link">
-                Microsoft Edge WebView2 Runtime {EXT_SVG}
-              </a>
-              <a href="https://download.microsoft.com/download/1/7/1/1718ccc4-6315-4d8e-9543-8e28a4e18c4c/dxwebsetup.exe" target="_blank" rel="noopener noreferrer" className="dep-link">
-                DirectX End-User Runtime {EXT_SVG}
-              </a>
-            </div>
-            <p className="doc-subnote">
-              <strong>DirectX Installation Note:</strong> Uncheck &ldquo;Install Bing Bar&rdquo; during setup, then restart the PC after completion.
-            </p>
-          </div>
+        {/* ── Topic Navigation Footer (Previous / Next) ── */}
+        <footer className="doc-page-nav-footer">
+          {prevTopic ? (
+            <button
+              type="button"
+              onClick={() => switchTopic(prevTopic.key)}
+              className="doc-page-nav-btn prev"
+            >
+              {ARROW_LEFT_SVG}
+              <div className="doc-nav-btn-text">
+                <span className="nav-btn-sub">Previous</span>
+                <span className="nav-btn-title">{prevTopic.title}</span>
+              </div>
+            </button>
+          ) : <div />}
 
-          {/* Analysis Log Generation */}
-          <div id="analysis-logs" className="playbook-card">
-            <div className="playbook-header">
-              <span className="playbook-badge">Escalations</span>
-              <h3>Generating an Analysis Log for Developers</h3>
-            </div>
-            <p>
-              When an issue is unresolvable through standard fixes, request an analysis log (Macro: <code>anal</code>):
-            </p>
-            <ol className="step-list">
-              <li>
-                Provide the user with the official analysis script:{' '}
-                <a
-                  href="https://cdn.discordapp.com/attachments/1486055444223885375/1521271601583362201/analysis.bat"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="doc-resource-link"
-                >
-                  analysis.bat {EXT_SVG}
-                </a>
-              </li>
-              <li>Ask the user to double click and run <code>analysis.bat</code>.</li>
-              <li>Retrieve the generated <code>Madium_Analysis.txt</code> from their Desktop and forward to Senior Support / Devs.</li>
-            </ol>
-          </div>
-        </section>
-
-        {/* ── SECTION 5: Image Container Placeholder (Compatible with future uploads) ── */}
-        <section className="doc-section">
-          <h2>Visual References & Attachments</h2>
-          <p className="doc-section-desc">
-            Visual troubleshooting workflows, diagrams, and injection guides.
-          </p>
-
-          <figure className="doc-image-frame">
-            <div className="doc-image-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 28, height: 28, opacity: 0.6 }}>
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <span>Diagram / Screenshot Container</span>
-              <p>Image slot ready for injection flowcharts, exclusion steps, and UI captures.</p>
-            </div>
-            <figcaption className="doc-caption">
-              Figure 1.0: Madium Injection Process & Multi-Instance Triage
-            </figcaption>
-          </figure>
-        </section>
+          {nextTopic && (
+            <button
+              type="button"
+              onClick={() => switchTopic(nextTopic.key)}
+              className="doc-page-nav-btn next"
+            >
+              <div className="doc-nav-btn-text">
+                <span className="nav-btn-sub">Next</span>
+                <span className="nav-btn-title">{nextTopic.title}</span>
+              </div>
+              {ARROW_RIGHT_SVG}
+            </button>
+          )}
+        </footer>
       </article>
-
-      {/* ── Right Sidebar: On This Page Table of Contents ── */}
-      <aside className="doc-toc">
-        <div className="doc-toc-sticky">
-          <span className="toc-title">On this page</span>
-          <nav className="toc-links" aria-label="Page Table of Contents">
-            <a href="#welcome" className={`toc-link ${activeSection === 'welcome' ? 'active' : ''}`}>
-              Overview
-            </a>
-            <a href="#roles-responsibilities" className={`toc-link ${activeSection.includes('role') || activeSection.includes('support') ? 'active' : ''}`}>
-              Roles & Hierarchy
-            </a>
-            <div className="toc-sublinks">
-              <a href="#trial-support" className={`toc-sublink ${activeSection === 'trial-support' ? 'active' : ''}`}>Trial Support</a>
-              <a href="#support-role" className={`toc-sublink ${activeSection === 'support-role' ? 'active' : ''}`}>Support</a>
-              <a href="#senior-support" className={`toc-sublink ${activeSection === 'senior-support' ? 'active' : ''}`}>Senior Support</a>
-              <a href="#lead-support" className={`toc-sublink ${activeSection === 'lead-support' ? 'active' : ''}`}>Operations Lead</a>
-            </div>
-            <a href="#ticket-triaging" className={`toc-link ${activeSection === 'ticket-triaging' ? 'active' : ''}`}>
-              Core Protocols
-            </a>
-            <a href="#diagnostic-questions" className={`toc-link ${activeSection === 'diagnostic-questions' ? 'active' : ''}`}>
-              Initial Diagnostics
-            </a>
-            <a href="#universal-fix" className={`toc-link ${activeSection === 'universal-fix' ? 'active' : ''}`}>
-              Universal Fix
-            </a>
-            <a href="#network-cloudflare" className={`toc-link ${activeSection === 'network-cloudflare' ? 'active' : ''}`}>
-              Cloudflare WARP
-            </a>
-            <a href="#antivirus-firewall" className={`toc-link ${activeSection === 'antivirus-firewall' ? 'active' : ''}`}>
-              Exclusions & Firewall
-            </a>
-            <a href="#roblox-launchers" className={`toc-link ${activeSection === 'roblox-launchers' ? 'active' : ''}`}>
-              Roblox Crashes
-            </a>
-            <a href="#dependencies-guide" className={`toc-link ${activeSection === 'dependencies-guide' ? 'active' : ''}`}>
-              Dependencies
-            </a>
-            <a href="#analysis-logs" className={`toc-link ${activeSection === 'analysis-logs' ? 'active' : ''}`}>
-              Analysis Logs
-            </a>
-          </nav>
-        </div>
-      </aside>
     </div>
   );
 }
