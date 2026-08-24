@@ -12,6 +12,13 @@ const CHAT_SVG = (
   </svg>
 );
 
+const BOOK_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+  </svg>
+);
+
 const PULSE_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -56,6 +63,16 @@ export default function HomeCards({ config, qrCount }: Props) {
         <p>Pre-written responses for common support tickets. Copy and paste directly.</p>
         <div className="home-card-arrow">
           <span>{qrCount} replies</span>
+          {ARROW_SVG}
+        </div>
+      </Link>
+
+      <Link href="/guide" className="home-card" id="card-guide">
+        <div className="home-card-icon">{BOOK_SVG}</div>
+        <h3>Support Guide</h3>
+        <p>Staff handbook, team roles, troubleshooting playbooks, and Cloudflare routing.</p>
+        <div className="home-card-arrow">
+          <span>Read handbook</span>
           {ARROW_SVG}
         </div>
       </Link>

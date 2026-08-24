@@ -36,6 +36,12 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   ),
+  guide: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  ),
   status: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -44,7 +50,7 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
 };
 
 interface TopbarProps {
-  activePage: 'home' | 'qrs' | 'status';
+  activePage: 'home' | 'qrs' | 'guide' | 'status';
   config: Config;
 }
 
@@ -52,6 +58,7 @@ export default function Topbar({ activePage, config }: TopbarProps) {
   const pages = [
     { key: 'home',   label: 'Home',          href: '/' },
     { key: 'qrs',    label: 'Quick Replies',  href: '/qrs' },
+    { key: 'guide',  label: 'Guide',         href: '/guide' },
     { key: 'status', label: 'Status',         href: '/status' },
   ] as const;
 
