@@ -283,9 +283,47 @@ main {
   padding: 1px 8px;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.toolbar-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg-3);
+  transition: color 0.12s, border-color 0.12s, background 0.12s, transform 0.1s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toolbar-icon-btn:hover {
+  color: var(--fg);
+  border-color: var(--border-focus);
+  background: var(--bg-overlay);
+}
+.toolbar-icon-btn:active {
+  transform: scale(0.94);
+}
+.toolbar-icon-btn svg {
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+  transition: transform 0.3s ease;
+}
+.toolbar-icon-btn.refreshing svg {
+  animation: spin 0.6s linear infinite;
+}
+
 .search-wrap {
   position: relative;
-  margin-left: auto;
   width: 220px;
   flex-shrink: 0;
 }
