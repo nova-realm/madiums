@@ -618,7 +618,7 @@ export default function GuideContent({ qrs }: Props) {
                     <span className="text-muted"> (Warn user: saves and tabs in editor will be reset).</span>
                   </li>
                   <li>Temporarily disable third-party antivirus shields or add folder exclusions.</li>
-                  <li>Run the <strong>Madium Bootstrapper</strong> as Administrator.</li>
+                  <li>Run the <strong>Madium Installer</strong> as Administrator.</li>
                 </ol>
               </div>
             </section>

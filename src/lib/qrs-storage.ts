@@ -3,6 +3,8 @@ import path from 'path';
 import type { QR } from './types';
 import fallbackQRs from '@data/qrs.json';
 
+const LIVE_RAILWAY_API_URL = 'https://madiums-production.up.railway.app/api/all';
+
 function getStoragePaths(): string[] {
   const cwd = process.cwd();
   return [
@@ -17,8 +19,37 @@ function getPrimaryPath(): string {
   return path.join(process.cwd(), 'data', 'qrs.json');
 }
 
-/** Read all QRs directly from disk (fresh data) */
+/** Read all QRs by GET fetching from live Railway API, with fallback to local disk */
 export async function getQRs(): Promise<QR[]> {
+  try {
+    const res = await fetch(LIVE_RAILWAY_API_URL, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const liveQRs: QR[] = data.map((d: any) => ({
+          id: d.key || d.id,
+          title: d.title || d.key || d.id,
+          text: d.desc || d.text || '',
+          enabled: d.enabled !== false,
+        }));
+
+        // Persist fresh live copy to local disk asynchronously
+        saveQRs(liveQRs).catch(() => {});
+
+        return liveQRs;
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not fetch live QRs from ${LIVE_RAILWAY_API_URL}, falling back to disk:`, err);
+  }
+
+  // Fallback to disk if network request fails
   const primary = getPrimaryPath();
   try {
     if (fs.existsSync(primary)) {
@@ -28,6 +59,7 @@ export async function getQRs(): Promise<QR[]> {
   } catch (err) {
     console.error('Error reading qrs.json from disk:', err);
   }
+
   return fallbackQRs as QR[];
 }
 

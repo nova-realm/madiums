@@ -93,14 +93,19 @@ export default function QRTable({ qrs, config }: Props) {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const res = await fetch('/api/all', { cache: 'no-store' });
+      let res: Response;
+      try {
+        res = await fetch('https://madiums-production.up.railway.app/api/all', { cache: 'no-store' });
+      } catch {
+        res = await fetch('/api/all', { cache: 'no-store' });
+      }
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       if (Array.isArray(data)) {
         const mapped: QR[] = data.map((d: any) => ({
           id: d.key || d.id,
-          title: d.title,
-          text: d.desc || d.text,
+          title: d.title || d.key || d.id,
+          text: d.desc || d.text || '',
           enabled: d.enabled !== false,
         }));
         setItems(mapped);
