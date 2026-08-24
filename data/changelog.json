@@ -1,0 +1,5 @@
+{
+  "timestamp": "July, 27",
+  "message": "1. Added new links to batch files and videos and images because the old ones are outdated.\n2. Fixed copy was not copying QRs with more than 200 chars.\n3. Added a status page that displays the status of each Madium server.",
+  "footerNote": "This is just a fun project. Feel free to contact me for ideas."
+}
