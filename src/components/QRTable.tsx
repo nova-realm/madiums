@@ -173,6 +173,7 @@ export default function QRTable({ qrs, config }: Props) {
 
           <div className="search-wrap">
             <svg
+              className="search-icon"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -197,8 +198,14 @@ export default function QRTable({ qrs, config }: Props) {
             />
             {query && (
               <button
+                type="button"
                 className="search-clear"
                 onClick={() => {
+                  setQuery('');
+                  searchRef.current?.focus();
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
                   setQuery('');
                   searchRef.current?.focus();
                 }}

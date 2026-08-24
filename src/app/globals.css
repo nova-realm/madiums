@@ -328,7 +328,7 @@ main {
   flex-shrink: 0;
 }
 
-.search-wrap svg {
+.search-wrap svg.search-icon {
   position: absolute;
   left: 9px;
   top: 50%;
@@ -357,15 +357,32 @@ main {
 /* Clear button inside search */
 .search-clear {
   position: absolute;
-  right: 8px;
+  right: 5px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--fg-3);
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
-  transition: color 0.1s;
+  justify-content: center;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--fg-3);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s, background 0.12s;
+  z-index: 2;
 }
-.search-clear:hover { color: var(--fg-2); }
+.search-clear:hover {
+  color: var(--fg);
+  background: var(--bg-overlay);
+}
+.search-clear svg {
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
 
 /* Collapse all button */
 .collapse-all-btn {
