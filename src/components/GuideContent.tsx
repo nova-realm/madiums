@@ -100,7 +100,6 @@ interface NavTopic {
   key: GuideTopicKey;
   title: string;
   category: 'Overview' | 'Staff Roles' | 'Core Protocols' | 'Troubleshooting Guides';
-  roleColor?: 'trial' | 'support' | 'senior' | 'lead';
 }
 
 const TOPICS: NavTopic[] = [
@@ -131,7 +130,6 @@ export default function GuideContent({ qrs }: Props) {
   // Sync URL topic on initial load or popstate
   useEffect(() => {
     const parseUrl = () => {
-      // Check query param first: ?topic=...
       const params = new URLSearchParams(window.location.search);
       const queryTopic = params.get('topic')?.toLowerCase();
       if (queryTopic) {
@@ -142,7 +140,6 @@ export default function GuideContent({ qrs }: Props) {
         }
       }
 
-      // Check hash if present
       const hash = window.location.hash.replace('#', '').toLowerCase();
       if (hash) {
         const match = TOPICS.find((t) => t.key === hash);
@@ -152,7 +149,6 @@ export default function GuideContent({ qrs }: Props) {
         }
       }
 
-      // Default: Welcome & Mission overview
       setActiveTopic('overview');
     };
 
@@ -240,54 +236,53 @@ export default function GuideContent({ qrs }: Props) {
   }
 
   return (
-    <div className="guide-layout">
+    <div className="doc-layout">
       {/* ── Left Sidebar Navigation ── */}
-      <aside className="guide-sidebar" aria-label="Guide topics">
-        <div className="guide-sidebar-inner">
-          <div className="guide-sidebar-head">
-            <span className="sidebar-meta">Support Docs</span>
-            <div className="guide-search-wrap">
-              <input
-                type="text"
-                placeholder="Search topics…"
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                className="guide-search-input"
-              />
-            </div>
+      <aside className="doc-sidebar" aria-label="Guide topics">
+        <div className="doc-sidebar-header">
+          <span className="doc-badge">Support Docs</span>
+          <span className="doc-sidebar-title">Troubleshooting &amp; Operations</span>
+          <div className="doc-sidebar-search">
+            <input
+              type="text"
+              placeholder="Filter topics…"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="doc-filter-input"
+            />
           </div>
-
-          <nav className="guide-nav-sections">
-            {categories.map(([category, items]) => (
-              <div key={category} className="nav-group">
-                <span className="nav-group-title">{category}</span>
-                <ul className="nav-item-list">
-                  {items.map((topic) => {
-                    const isActive = activeTopic === topic.key;
-                    return (
-                      <li key={topic.key}>
-                        <button
-                          type="button"
-                          onClick={() => switchTopic(topic.key)}
-                          className={`nav-topic-btn${isActive ? ' active' : ''}${
-                            topic.roleColor ? ` role-${topic.roleColor}` : ''
-                          }`}
-                        >
-                          <span className="topic-name">{topic.title}</span>
-                          {isActive && <span className="active-dot" />}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-          </nav>
         </div>
+
+        <nav className="doc-nav">
+          {categories.map(([category, items]) => (
+            <div key={category} className="doc-nav-group">
+              <span className="doc-nav-heading">
+                {category === 'Overview' && BOOK_SVG}
+                {category === 'Staff Roles' && USERS_SVG}
+                {category === 'Core Protocols' && SHIELD_SVG}
+                {category === 'Troubleshooting Guides' && TOOL_SVG}
+                {category}
+              </span>
+              {items.map((topic) => {
+                const isActive = activeTopic === topic.key;
+                return (
+                  <button
+                    key={topic.key}
+                    type="button"
+                    onClick={() => switchTopic(topic.key)}
+                    className={`doc-nav-link${isActive ? ' active' : ''}`}
+                  >
+                    {topic.title}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
       </aside>
 
       {/* ── Main Content View ── */}
-      <main className="guide-main">
+      <div className="doc-content">
         {/* TOPIC 1: WELCOME & OVERVIEW */}
         {activeTopic === 'overview' && (
           <div className="doc-page-view">
@@ -300,44 +295,45 @@ export default function GuideContent({ qrs }: Props) {
             </header>
 
             <section className="doc-section">
-              <div className="mission-banner">
-                <div className="mission-icon">{SHIELD_SVG}</div>
-                <div className="mission-content">
-                  <h3>Our Mission</h3>
-                  <blockquote>
-                    &ldquo;Provide timely &amp; professional support to members and users that exceeds their expectations while maintaining our community standards.&rdquo;
-                  </blockquote>
-                </div>
+              <div className="doc-quote-card">
+                <span className="quote-label">Our Mission</span>
+                <p>
+                  &ldquo;Provide timely &amp; professional support to members and users that exceeds their expectations while maintaining our community standards.&rdquo;
+                </p>
               </div>
 
-              <div className="guide-grid" style={{ marginTop: 24 }}>
-                <div className="guide-card" onClick={() => switchTopic('roles')}>
-                  <div className="guide-card-icon">{USERS_SVG}</div>
-                  <h3>Staff Roles &amp; Hierarchy</h3>
-                  <p>Learn team responsibilities, trial evaluation criteria, and leadership duties.</p>
-                  <span className="guide-card-link">View Roles {ARROW_RIGHT_SVG}</span>
-                </div>
+              <div className="doc-category-cards">
+                <button type="button" className="doc-cat-card" onClick={() => switchTopic('roles')}>
+                  <div className="cat-card-icon">{USERS_SVG}</div>
+                  <div className="cat-card-content">
+                    <h3>Staff Roles &amp; Hierarchy</h3>
+                    <p>Learn team responsibilities, trial evaluation criteria, and leadership duties.</p>
+                  </div>
+                </button>
 
-                <div className="guide-card" onClick={() => switchTopic('protocols')}>
-                  <div className="guide-card-icon">{SHIELD_SVG}</div>
-                  <h3>Rules &amp; Security Protocols</h3>
-                  <p>Understand user rules, 10-minute inactivity thresholds, and blacklist criteria.</p>
-                  <span className="guide-card-link">View Protocols {ARROW_RIGHT_SVG}</span>
-                </div>
+                <button type="button" className="doc-cat-card" onClick={() => switchTopic('protocols')}>
+                  <div className="cat-card-icon">{SHIELD_SVG}</div>
+                  <div className="cat-card-content">
+                    <h3>Rules &amp; Security Protocols</h3>
+                    <p>Understand user rules, 10-minute inactivity thresholds, and blacklist criteria.</p>
+                  </div>
+                </button>
 
-                <div className="guide-card" onClick={() => switchTopic('diagnostics')}>
-                  <div className="guide-card-icon">{TOOL_SVG}</div>
-                  <h3>Step 1: Diagnostics</h3>
-                  <p>The standard questionnaire to ask users before suggesting troubleshooting steps.</p>
-                  <span className="guide-card-link">View Questionnaire {ARROW_RIGHT_SVG}</span>
-                </div>
+                <button type="button" className="doc-cat-card" onClick={() => switchTopic('diagnostics')}>
+                  <div className="cat-card-icon">{TOOL_SVG}</div>
+                  <div className="cat-card-content">
+                    <h3>Step 1: Diagnostics</h3>
+                    <p>The standard questionnaire to ask users before suggesting troubleshooting steps.</p>
+                  </div>
+                </button>
 
-                <div className="guide-card" onClick={() => switchTopic('key-system')}>
-                  <div className="guide-card-icon">{TOOL_SVG}</div>
-                  <h3>Key Issues &amp; Work.ink</h3>
-                  <p>Handle key bypass attempts, work.ink link issues, and key generation inquiries.</p>
-                  <span className="guide-card-link">View Key Guide {ARROW_RIGHT_SVG}</span>
-                </div>
+                <button type="button" className="doc-cat-card" onClick={() => switchTopic('key-system')}>
+                  <div className="cat-card-icon">{TOOL_SVG}</div>
+                  <div className="cat-card-content">
+                    <h3>Key Issues &amp; Work.ink</h3>
+                    <p>Handle key bypass attempts, work.ink link issues, and key generation inquiries.</p>
+                  </div>
+                </button>
               </div>
             </section>
           </div>
@@ -355,17 +351,19 @@ export default function GuideContent({ qrs }: Props) {
             </header>
 
             <section className="doc-section">
-              <div className="role-cards-container">
+              <div className="roles-grid">
                 {/* Trial Support */}
-                <div className="role-card role-trial">
+                <div className="role-card">
                   <div className="role-card-header">
-                    <span className="role-badge role-badge-trial">Trial Support</span>
-                    <span className="role-hierarchy-tag">Level 1 • Training Phase</span>
+                    <span className="role-badge badge-trial">
+                      <span className="badge-dot" /> Trial Support
+                    </span>
+                    <span className="role-id">Level 1 • Training Phase</span>
                   </div>
-                  <p className="role-desc">
+                  <p className="role-summary">
                     You are in your trial phase, learning how to diagnose and resolve user issues.
                   </p>
-                  <ul className="role-points">
+                  <ul className="role-list">
                     <li>
                       <strong>Willingness to Learn:</strong> Be open to feedback and instructions from Support and Seniors.
                     </li>
@@ -379,15 +377,17 @@ export default function GuideContent({ qrs }: Props) {
                 </div>
 
                 {/* Support */}
-                <div className="role-card role-support">
+                <div className="role-card">
                   <div className="role-card-header">
-                    <span className="role-badge role-badge-support">Support</span>
-                    <span className="role-hierarchy-tag">Level 2 • Frontline</span>
+                    <span className="role-badge badge-support">
+                      <span className="badge-dot" /> Support
+                    </span>
+                    <span className="role-id">Level 2 • Frontline</span>
                   </div>
-                  <p className="role-desc">
+                  <p className="role-summary">
                     You have passed trial and are an official frontline support member.
                   </p>
-                  <ul className="role-points">
+                  <ul className="role-list">
                     <li>
                       <strong>Ticket Handling:</strong> Be active in tickets, claim them promptly, and diagnose issues accurately.
                     </li>
@@ -401,15 +401,17 @@ export default function GuideContent({ qrs }: Props) {
                 </div>
 
                 {/* Senior Support */}
-                <div className="role-card role-senior">
+                <div className="role-card">
                   <div className="role-card-header">
-                    <span className="role-badge role-badge-senior">Senior Support (UNCS)</span>
-                    <span className="role-hierarchy-tag">Level 3 • Supervisors</span>
+                    <span className="role-badge badge-senior">
+                      <span className="badge-dot" /> Senior Support (UNCS)
+                    </span>
+                    <span className="role-id">Level 3 • Supervisors</span>
                   </div>
-                  <p className="role-desc">
+                  <p className="role-summary">
                     Experienced staff responsible for guidance, escalations, and moderation.
                   </p>
-                  <ul className="role-points">
+                  <ul className="role-list">
                     <li>
                       <strong>Guidance &amp; Mentorship:</strong> Guide Trial Supports and Supports through complex edge cases.
                     </li>
@@ -423,15 +425,17 @@ export default function GuideContent({ qrs }: Props) {
                 </div>
 
                 {/* Lead Support */}
-                <div className="role-card role-lead">
+                <div className="role-card">
                   <div className="role-card-header">
-                    <span className="role-badge role-badge-lead">Lead Support</span>
-                    <span className="role-hierarchy-tag">Level 4 • Department Lead</span>
+                    <span className="role-badge badge-lead">
+                      <span className="badge-dot" /> Lead Support
+                    </span>
+                    <span className="role-id">Level 4 • Department Lead</span>
                   </div>
-                  <p className="role-desc">
+                  <p className="role-summary">
                     Executive team leaders managing team operations, policies, and blacklists.
                   </p>
-                  <ul className="role-points">
+                  <ul className="role-list">
                     <li>
                       <strong>Team Management:</strong> Oversee overall support performance, promotions, and rule enforcements.
                     </li>
@@ -475,7 +479,7 @@ export default function GuideContent({ qrs }: Props) {
               <p className="doc-p">
                 Support staff have the right to close tickets and deny service under the following conditions:
               </p>
-              <ul className="doc-checklist">
+              <ul className="step-list">
                 <li>
                   <strong>Abusive / Toxic Behavior:</strong> Users insulting staff or screaming in caps should be given 1 warning.
                   If continued, close the ticket with a note and report to a Senior for a server mute/ban.
@@ -1017,7 +1021,7 @@ export default function GuideContent({ qrs }: Props) {
             </button>
           )}
         </footer>
-      </main>
+      </div>
     </div>
   );
 }
