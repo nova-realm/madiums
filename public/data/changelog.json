@@ -1,5 +1,6 @@
 {
-  "timestamp": "July, 27",
-  "message": "1. Added new links to batch files and videos and images because the old ones are outdated.\n2. Fixed copy was not copying QRs with more than 200 chars.\n3. Added a status page that displays the status of each Madium server.",
-  "footerNote": "This is just a fun project. Feel free to contact me for ideas."
+  "timestamp": "Today",
+  "title": "Changelog & Updates",
+  "message": "1. 📖 Added dedicated **[Support Guide](/guide)** covering team protocols, work.ink fixes, bin replacements, and crash playbooks.\n2. 🎬 Added full rendering support for **videos, images, and downloadable script cards** (.bat, .exe, .zip) in the QRs view.\n3. 🥚 Added a secret **hidden Easter Egg** somewhere on the site — can you find it?\n4. ⚡ Major **API & webhook optimizations** on Railway — the bot responses and queries are now significantly faster.",
+  "footerNote": "This is a continuous project. Feel free to contact me for new features or bug reports."
 }

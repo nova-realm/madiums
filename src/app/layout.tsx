@@ -3,10 +3,8 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import Footer from '@/components/Footer';
 import EasterEgg from '@/components/EasterEgg';
-import ChangelogBubble from '@/components/ChangelogBubble';
 import config from '@data/config.json';
 import eggData from '@data/easter-egg.json';
-import changelogData from '@data/changelog.json';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -33,7 +31,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <Footer config={config} />
         <EasterEgg data={eggData} config={config} />
-        <ChangelogBubble data={changelogData} config={config} />
       </body>
     </html>
   );
