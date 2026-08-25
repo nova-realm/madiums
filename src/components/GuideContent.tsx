@@ -86,7 +86,9 @@ export type GuideTopicKey =
   | 'roles'
   | 'protocols'
   | 'diagnostics'
+  | 'key-system'
   | 'universal'
+  | 'bin-replacement'
   | 'cloudflare'
   | 'antivirus'
   | 'roblox'
@@ -102,17 +104,19 @@ interface NavTopic {
 }
 
 const TOPICS: NavTopic[] = [
-  { key: 'overview',     title: 'Welcome & Mission',           category: 'Overview' },
-  { key: 'roles',        title: 'Roles & Hierarchy',           category: 'Staff Roles' },
-  { key: 'protocols',    title: 'Rules, Bans & Security',      category: 'Core Protocols' },
-  { key: 'diagnostics',  title: 'Initial Diagnostic Questions', category: 'Troubleshooting Guides' },
-  { key: 'universal',    title: 'Universal Clean Fix',         category: 'Troubleshooting Guides' },
-  { key: 'cloudflare',   title: 'Network & Cloudflare WARP',   category: 'Troubleshooting Guides' },
-  { key: 'antivirus',    title: 'Antivirus & Firewall Rules',  category: 'Troubleshooting Guides' },
-  { key: 'roblox',       title: 'Roblox Crashes & Launchers',  category: 'Troubleshooting Guides' },
-  { key: 'webview',      title: 'WebView2 Corruptions',        category: 'Troubleshooting Guides' },
-  { key: 'dependencies', title: 'Required Dependencies',       category: 'Troubleshooting Guides' },
-  { key: 'analysis',     title: 'Generating Analysis Logs',    category: 'Troubleshooting Guides' },
+  { key: 'overview',        title: 'Welcome & Mission',           category: 'Overview' },
+  { key: 'roles',           title: 'Roles & Hierarchy',           category: 'Staff Roles' },
+  { key: 'protocols',       title: 'Rules, Bans & Security',      category: 'Core Protocols' },
+  { key: 'diagnostics',     title: 'Initial Diagnostic Questions', category: 'Troubleshooting Guides' },
+  { key: 'key-system',      title: 'Key Issues & Work.ink Fix',   category: 'Troubleshooting Guides' },
+  { key: 'universal',       title: 'Universal Clean Fix',         category: 'Troubleshooting Guides' },
+  { key: 'bin-replacement', title: 'Corrupted Bin Replacement',   category: 'Troubleshooting Guides' },
+  { key: 'cloudflare',      title: 'Network & Cloudflare WARP',   category: 'Troubleshooting Guides' },
+  { key: 'antivirus',       title: 'Antivirus & Firewall Rules',  category: 'Troubleshooting Guides' },
+  { key: 'roblox',          title: 'Roblox Crashes & Launchers',  category: 'Troubleshooting Guides' },
+  { key: 'webview',         title: 'WebView2 Corruptions',        category: 'Troubleshooting Guides' },
+  { key: 'dependencies',    title: 'Required Dependencies',       category: 'Troubleshooting Guides' },
+  { key: 'analysis',        title: 'Generating Analysis Logs',    category: 'Troubleshooting Guides' },
 ];
 
 interface Props {
@@ -183,324 +187,259 @@ export default function GuideContent({ qrs }: Props) {
     return map;
   }, [qrs]);
 
-  // Filtered navigation list
-  const filteredTopics = useMemo(() => {
-    if (!searchFilter.trim()) return TOPICS;
-    const q = searchFilter.toLowerCase();
-    return TOPICS.filter((t) => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q));
-  }, [searchFilter]);
-
-  // Current topic index for pagination
+  // Current topic index & navigation items
   const currentIndex = TOPICS.findIndex((t) => t.key === activeTopic);
   const prevTopic = currentIndex > 0 ? TOPICS[currentIndex - 1] : null;
   const nextTopic = currentIndex < TOPICS.length - 1 ? TOPICS[currentIndex + 1] : null;
 
+  // Filter topics for the sidebar search
+  const filteredTopics = useMemo(() => {
+    if (!searchFilter) return TOPICS;
+    const q = searchFilter.toLowerCase();
+    return TOPICS.filter((t) => t.title.toLowerCase().includes(q) || t.key.includes(q));
+  }, [searchFilter]);
+
+  // Group filtered topics by category
+  const categories = useMemo(() => {
+    const map = new Map<string, NavTopic[]>();
+    filteredTopics.forEach((t) => {
+      if (!map.has(t.category)) map.set(t.category, []);
+      map.get(t.category)!.push(t);
+    });
+    return Array.from(map.entries());
+  }, [filteredTopics]);
+
+  function renderMacro(qrKey: string, customTitle?: string) {
+    const qr = qrMap.get(qrKey.toLowerCase());
+    const text = qr?.text || '';
+    if (!text) return null;
+
+    const title = customTitle || qr?.title || `Macro: ${qrKey}`;
+
+    return (
+      <div className="macro-card">
+        <div className="macro-card-head">
+          <div className="macro-badge">
+            <code>/{qrKey}</code>
+          </div>
+          <span className="macro-title">{title}</span>
+          <button
+            type="button"
+            className="code-copy-btn"
+            onClick={() => handleCopy(qrKey, text)}
+          >
+            {copiedKey === qrKey ? CHECK_SVG : COPY_SVG}{' '}
+            {copiedKey === qrKey ? 'Copied' : 'Copy Macro'}
+          </button>
+        </div>
+        <div className="macro-card-body">
+          <pre className="code-snippet">{text}</pre>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="doc-layout">
+    <div className="guide-layout">
       {/* ── Left Sidebar Navigation ── */}
-      <aside className="doc-sidebar">
-        <div className="doc-sidebar-header">
-          <span className="doc-badge">Handbook</span>
-          <span className="doc-sidebar-title">Support Guide</span>
+      <aside className="guide-sidebar" aria-label="Guide topics">
+        <div className="guide-sidebar-inner">
+          <div className="guide-sidebar-head">
+            <span className="sidebar-meta">Support Docs</span>
+            <div className="guide-search-wrap">
+              <input
+                type="text"
+                placeholder="Search topics…"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="guide-search-input"
+              />
+            </div>
+          </div>
+
+          <nav className="guide-nav-sections">
+            {categories.map(([category, items]) => (
+              <div key={category} className="nav-group">
+                <span className="nav-group-title">{category}</span>
+                <ul className="nav-item-list">
+                  {items.map((topic) => {
+                    const isActive = activeTopic === topic.key;
+                    return (
+                      <li key={topic.key}>
+                        <button
+                          type="button"
+                          onClick={() => switchTopic(topic.key)}
+                          className={`nav-topic-btn${isActive ? ' active' : ''}${
+                            topic.roleColor ? ` role-${topic.roleColor}` : ''
+                          }`}
+                        >
+                          <span className="topic-name">{topic.title}</span>
+                          {isActive && <span className="active-dot" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </nav>
         </div>
-
-        <div className="doc-sidebar-search">
-          <input
-            type="text"
-            placeholder="Filter guides…"
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            className="doc-filter-input"
-            aria-label="Filter documentation"
-          />
-        </div>
-
-        <nav className="doc-nav" aria-label="Support Guide Navigation">
-          {/* Overview Category */}
-          <div className="doc-nav-group">
-            <span className="doc-nav-heading">
-              {BOOK_SVG} Overview
-            </span>
-            {filteredTopics
-              .filter((t) => t.category === 'Overview')
-              .map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => switchTopic(t.key)}
-                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
-                >
-                  {t.title}
-                </button>
-              ))}
-          </div>
-
-          {/* Staff Roles Category */}
-          <div className="doc-nav-group">
-            <span className="doc-nav-heading">
-              {USERS_SVG} Staff Roles
-            </span>
-            {filteredTopics
-              .filter((t) => t.category === 'Staff Roles')
-              .map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => switchTopic(t.key)}
-                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
-                >
-                  {t.title}
-                </button>
-              ))}
-          </div>
-
-          {/* Core Protocols */}
-          <div className="doc-nav-group">
-            <span className="doc-nav-heading">
-              {SHIELD_SVG} Core Protocols
-            </span>
-            {filteredTopics
-              .filter((t) => t.category === 'Core Protocols')
-              .map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => switchTopic(t.key)}
-                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
-                >
-                  {t.title}
-                </button>
-              ))}
-          </div>
-
-          {/* Troubleshooting Guides */}
-          <div className="doc-nav-group">
-            <span className="doc-nav-heading">
-              {TOOL_SVG} Troubleshooting Guides
-            </span>
-            {filteredTopics
-              .filter((t) => t.category === 'Troubleshooting Guides')
-              .map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => switchTopic(t.key)}
-                  className={`doc-nav-link ${activeTopic === t.key ? 'active' : ''}`}
-                >
-                  {t.title}
-                </button>
-              ))}
-          </div>
-        </nav>
       </aside>
 
-      {/* ── Main Documentation Page Content ── */}
-      <article className="doc-content">
-        {/* TOPIC 1: OVERVIEW */}
+      {/* ── Main Content View ── */}
+      <main className="guide-main">
+        {/* TOPIC 1: WELCOME & OVERVIEW */}
         {activeTopic === 'overview' && (
           <div className="doc-page-view">
             <header className="doc-hero">
-              <span className="doc-pill">Staff Knowledge Base</span>
-              <h1 className="doc-title">Welcome to Support</h1>
+              <span className="doc-pill">Support Operations</span>
+              <h1 className="doc-title">Madium Support Team Guide</h1>
               <p className="doc-subtitle">
-                Official handbook for diagnosing user issues, ticket triaging workflows,
-                and team role standards.
+                Welcome to the team! As a support member, you are our frontline for resolving user issues, diagnosing client corruptions, and upholding community standards.
               </p>
             </header>
 
             <section className="doc-section">
-              <h2>Introduction &amp; Mission</h2>
-              <div className="doc-prose">
-                <p className="lead-text">
-                  <strong>Welcome to the Support Team!</strong> As a support member,
-                  you are one of our frontline soldiers for any technical challenges and inquiries.
-                  Your role is crucial in maintaining user satisfaction and experience.
-                </p>
+              <div className="mission-banner">
+                <div className="mission-icon">{SHIELD_SVG}</div>
+                <div className="mission-content">
+                  <h3>Our Mission</h3>
+                  <blockquote>
+                    &ldquo;Provide timely &amp; professional support to members and users that exceeds their expectations while maintaining our community standards.&rdquo;
+                  </blockquote>
+                </div>
+              </div>
 
-                <blockquote className="doc-quote-card">
-                  <span className="quote-label">Our Mission</span>
-                  <p>
-                    &ldquo;Provide Timely &amp; Professional Support to Members &amp; Users that exceeds their expectations while maintaining our community standard.&rdquo;
-                  </p>
-                </blockquote>
+              <div className="guide-grid" style={{ marginTop: 24 }}>
+                <div className="guide-card" onClick={() => switchTopic('roles')}>
+                  <div className="guide-card-icon">{USERS_SVG}</div>
+                  <h3>Staff Roles &amp; Hierarchy</h3>
+                  <p>Learn team responsibilities, trial evaluation criteria, and leadership duties.</p>
+                  <span className="guide-card-link">View Roles {ARROW_RIGHT_SVG}</span>
+                </div>
+
+                <div className="guide-card" onClick={() => switchTopic('protocols')}>
+                  <div className="guide-card-icon">{SHIELD_SVG}</div>
+                  <h3>Rules &amp; Security Protocols</h3>
+                  <p>Understand user rules, 10-minute inactivity thresholds, and blacklist criteria.</p>
+                  <span className="guide-card-link">View Protocols {ARROW_RIGHT_SVG}</span>
+                </div>
+
+                <div className="guide-card" onClick={() => switchTopic('diagnostics')}>
+                  <div className="guide-card-icon">{TOOL_SVG}</div>
+                  <h3>Step 1: Diagnostics</h3>
+                  <p>The standard questionnaire to ask users before suggesting troubleshooting steps.</p>
+                  <span className="guide-card-link">View Questionnaire {ARROW_RIGHT_SVG}</span>
+                </div>
+
+                <div className="guide-card" onClick={() => switchTopic('key-system')}>
+                  <div className="guide-card-icon">{TOOL_SVG}</div>
+                  <h3>Key Issues &amp; Work.ink</h3>
+                  <p>Handle key bypass attempts, work.ink link issues, and key generation inquiries.</p>
+                  <span className="guide-card-link">View Key Guide {ARROW_RIGHT_SVG}</span>
+                </div>
               </div>
             </section>
-
-            {/* Quick Link Cards */}
-            <div className="doc-category-cards">
-              <button type="button" onClick={() => switchTopic('roles')} className="doc-cat-card">
-                <div className="cat-card-icon">{USERS_SVG}</div>
-                <div className="cat-card-content">
-                  <h3>Team Hierarchy</h3>
-                  <p>Trial, Support, Senior UNCs, and Lead Support expectations.</p>
-                </div>
-              </button>
-
-              <button type="button" onClick={() => switchTopic('universal')} className="doc-cat-card">
-                <div className="cat-card-icon">{TOOL_SVG}</div>
-                <div className="cat-card-content">
-                  <h3>Universal Fixes</h3>
-                  <p>One-click clean reinstall, DeleteMadium batch, and resets.</p>
-                </div>
-              </button>
-
-              <button type="button" onClick={() => switchTopic('cloudflare')} className="doc-cat-card">
-                <div className="cat-card-icon">{SHIELD_SVG}</div>
-                <div className="cat-card-content">
-                  <h3>Network &amp; Cloudflare</h3>
-                  <p>Backend ratelimits, WARP routing, and connection bypasses.</p>
-                </div>
-              </button>
-            </div>
           </div>
         )}
 
-        {/* TOPIC 2: ROLES & RESPONSIBILITIES */}
+        {/* TOPIC 2: STAFF ROLES */}
         {activeTopic === 'roles' && (
           <div className="doc-page-view">
             <header className="doc-hero">
               <span className="doc-pill">Staff Structure</span>
-              <h1 className="doc-title">Roles &amp; Hierarchy</h1>
+              <h1 className="doc-title">Roles &amp; Responsibilities</h1>
               <p className="doc-subtitle">
-                Scope of authority, team expectations, and escalation pathways.
+                Clear expectations and authority across the support ladder.
               </p>
             </header>
 
             <section className="doc-section">
-              <div className="roles-grid">
-                {/* Trial Support (Yellow) */}
-                <div className="role-card card-trial">
+              <div className="role-cards-container">
+                {/* Trial Support */}
+                <div className="role-card role-trial">
                   <div className="role-card-header">
-                    <div className="role-badge badge-trial">
-                      <span className="badge-dot" /> Trial Support
-                    </div>
-                    <span className="role-id">@Trial Support</span>
+                    <span className="role-badge role-badge-trial">Trial Support</span>
+                    <span className="role-hierarchy-tag">Level 1 • Training Phase</span>
                   </div>
-                  <p className="role-summary">
-                    Supports under a trial phase, where you will learn how to diagnose and resolve issues faced by users.
+                  <p className="role-desc">
+                    You are in your trial phase, learning how to diagnose and resolve user issues.
                   </p>
-
-                  <h4>What We Expect From You:</h4>
-                  <ul className="role-list">
+                  <ul className="role-points">
                     <li>
-                      <strong>Will to Learn &amp; Observe:</strong> You should be willing to learn and be open to any information given to you by a support or a senior.
+                      <strong>Willingness to Learn:</strong> Be open to feedback and instructions from Support and Seniors.
                     </li>
                     <li>
-                      <strong>Ticket Observation:</strong> As you are a trial, <strong>you are not required to directly start doing tickets</strong>. You can watch your seniors or fellow supports and get comfortable with the fixes.
+                      <strong className="highlight-text">Ticket Observation:</strong> In your initial period, you are <strong>not allowed to answer tickets directly</strong> unless explicitly permitted by a Senior or Lead Support.
                     </li>
                     <li>
-                      <strong>Handle Simple Tickets:</strong> You may handle simple tickets, such as Network Errors and Unban/Appeal inquiries (where you will have to ping a moderator).
-                    </li>
-                    <li>
-                      <strong>Knowledge DB Familiarization:</strong> Get familiar with all the quick fixes, issues, and support documentation.
-                    </li>
-                    <li>
-                      <strong>Feedback:</strong> Always request and implement feedback.
-                    </li>
-                    <li>
-                      <strong className="highlight-text alert">Integrity:</strong> Uphold the highest level of integrity. Failing to do so will result in strikes or removal of roles.
+                      <strong>Take Notes:</strong> Observe senior staff handling tickets, learn common macro triggers, and study this guide.
                     </li>
                   </ul>
                 </div>
 
-                {/* Support (Orange) */}
-                <div className="role-card card-support">
+                {/* Support */}
+                <div className="role-card role-support">
                   <div className="role-card-header">
-                    <div className="role-badge badge-support">
-                      <span className="badge-dot" /> Support Staff
-                    </div>
-                    <span className="role-id">@Support</span>
+                    <span className="role-badge role-badge-support">Support</span>
+                    <span className="role-hierarchy-tag">Level 2 • Frontline</span>
                   </div>
-                  <p className="role-summary">
-                    The core of our support team. You are expected to handle the majority of tickets and be self-sufficient in diagnosing users&apos; issues.
+                  <p className="role-desc">
+                    You have passed trial and are an official frontline support member.
                   </p>
-
-                  <h4>What We Expect From You:</h4>
-                  <ul className="role-list">
+                  <ul className="role-points">
                     <li>
-                      <strong>Ticket Triaging:</strong> Quickly claim, assess, and solve tickets.
+                      <strong>Ticket Handling:</strong> Be active in tickets, claim them promptly, and diagnose issues accurately.
                     </li>
                     <li>
-                      <strong>Issue Diagnosing:</strong> Use the Support Doc and your experience to resolve common and new issues.
+                      <strong>Ticket Responsibility:</strong> After claiming a ticket, see it through to resolution. Avoid jumping between tickets without finishing them.
                     </li>
                     <li>
-                      <strong>User&apos;s Education:</strong> Guide users to self-help by navigating them through the <code>#quickfixes</code> channel.
-                    </li>
-                    <li>
-                      <strong className="highlight-text">Rule Enforcement:</strong> Act on rule violations. If a user is disrespectful, uncooperative, or breaking server rules, deny service and request a ban from a senior (in extreme cases).
-                    </li>
-                    <li>
-                      <strong>Support Docs:</strong> Contribute to the Support Database by adding new fixes or improvements (always verify with a Senior first).
-                    </li>
-                    <li>
-                      <strong>Team Collaboration:</strong> Help Trials when needed, becoming their teacher when seniors are not available.
+                      <strong>Macro Usage:</strong> Use predefined macros (<code>/ask</code>, <code>/universal</code>, <code>/vpn</code>, <code>/key</code>) appropriately.
                     </li>
                   </ul>
                 </div>
 
-                {/* Senior Support (Orange to Brown) */}
-                <div className="role-card card-senior">
+                {/* Senior Support */}
+                <div className="role-card role-senior">
                   <div className="role-card-header">
-                    <div className="role-badge badge-senior">
-                      <span className="badge-dot" /> Senior Support
-                    </div>
-                    <span className="role-id">@Senior Support (UNCS)</span>
+                    <span className="role-badge role-badge-senior">Senior Support (UNCS)</span>
+                    <span className="role-hierarchy-tag">Level 3 • Supervisors</span>
                   </div>
-                  <p className="role-summary">
-                    The Seniors (UNCS) of the team. You are expected to handle the toughest issues, teach trials/supports, and ensure quality across the team.
+                  <p className="role-desc">
+                    Experienced staff responsible for guidance, escalations, and moderation.
                   </p>
-
-                  <h4>What We Expect From You:</h4>
-                  <ul className="role-list">
+                  <ul className="role-points">
                     <li>
-                      <strong>Complex Issue Resolution:</strong> Handle and/or take over tickets escalated to you due to user sensitivity or technical difficulties.
+                      <strong>Guidance &amp; Mentorship:</strong> Guide Trial Supports and Supports through complex edge cases.
                     </li>
                     <li>
-                      <strong>Mentorship:</strong> Train and guide Trials and Supports. Provide actionable feedback to help them improve.
+                      <strong>Complex Issues:</strong> Take over unresolvable tickets, inspect custom logs, and communicate with developers.
                     </li>
                     <li>
-                      <strong>Quality Assurance:</strong> Review tickets to ensure compliance with staff guide and rules.
-                    </li>
-                    <li>
-                      <strong>Rule Enforcement Authority:</strong> Make decisions regarding whether users deserve a Blacklist/Ban and forward to a Lead or Manager for final approval.
-                    </li>
-                    <li>
-                      <strong>Bug Reporting:</strong> Actively report reproducible bugs directly to the dev team.
-                    </li>
-                    <li>
-                      <strong>Support Document Update:</strong> Actively review the support document, make necessary changes for new issues/bugs, and provide fixes.
+                      <strong>Ticket Supervision:</strong> Ensure support tickets adhere to professionalism and closing protocols.
                     </li>
                   </ul>
                 </div>
 
-                {/* Lead Support (Brown) */}
-                <div className="role-card card-lead">
+                {/* Lead Support */}
+                <div className="role-card role-lead">
                   <div className="role-card-header">
-                    <div className="role-badge badge-lead">
-                      <span className="badge-dot" /> Lead Support
-                    </div>
-                    <span className="role-id">@Lead Support</span>
+                    <span className="role-badge role-badge-lead">Lead Support</span>
+                    <span className="role-hierarchy-tag">Level 4 • Department Lead</span>
                   </div>
-                  <p className="role-summary">
-                    The operational leader. You manage the team and act as a bridge between Management and Support.
+                  <p className="role-desc">
+                    Executive team leaders managing team operations, policies, and blacklists.
                   </p>
-
-                  <h4>What Is Expected From You:</h4>
-                  <ul className="role-list">
+                  <ul className="role-points">
                     <li>
-                      <strong>Team Oversight:</strong> Actively monitor team performance, active tickets, and response times.
-                    </li>
-                    <li>
-                      <strong>Onboarding:</strong> Lead the onboarding process for new trial supports.
-                    </li>
-                    <li>
-                      <strong>Team Morale:</strong> Foster a positive and collaborative team culture.
+                      <strong>Team Management:</strong> Oversee overall support performance, promotions, and rule enforcements.
                     </li>
                     <li>
                       <strong>Escalation Management:</strong> Manage Blacklist / Ban requests based on provided proof.
                     </li>
                     <li>
-                      <strong className="highlight-text alert">External Fix Approval:</strong> Review and approve any unofficial fixes (batch files) before they are distributed by team members. <strong>Do not allow unapproved fixes.</strong>
+                      <strong className="highlight-text alert">External Fix Approval:</strong> Review and approve any unofficial fixes (batch files) before distribution. <strong>Do not allow unapproved fixes.</strong>
                     </li>
                   </ul>
                 </div>
@@ -551,6 +490,11 @@ export default function GuideContent({ qrs }: Props) {
                 </li>
               </ul>
 
+              <h3>Inactivity &amp; Patience Macros</h3>
+              {renderMacro('?', 'Inactivity Check (10 Minute Rule)')}
+              {renderMacro('wait', 'Patient Review Message')}
+              {renderMacro('unfixable', 'Final Recommendation / Unfixable')}
+
               <h3>External Fixes &amp; Batch File Security</h3>
               <div className="callout callout-warning">
                 <div className="callout-icon">{SHIELD_SVG}</div>
@@ -586,27 +530,67 @@ export default function GuideContent({ qrs }: Props) {
                 <p>
                   Before guessing fixes, always send the standard diagnostic questions (Macro: <code>ask</code>) to gather essential system context:
                 </p>
-                <div className="code-block-wrap">
-                  <pre className="code-snippet">
-{`1. Is your Windows user account an Administrator?
-2. Do you know what an Antivirus Exclusion is? Have you added Madium?
-3. When clicking "Attach", is Roblox open or closed? Are you using default Roblox, Fishstrap, or Froststrap?
-4. Do you have third-party antivirus software installed (Kaspersky, McAfee, Malwarebytes, Norton)?`}
-                  </pre>
-                  <button
-                    type="button"
-                    className="code-copy-btn"
-                    onClick={() => handleCopy('ask', qrMap.get('ask')?.text || '')}
-                  >
-                    {copiedKey === 'ask' ? CHECK_SVG : COPY_SVG} {copiedKey === 'ask' ? 'Copied' : 'Copy Macro'}
-                  </button>
-                </div>
+                {renderMacro('ask', 'Diagnostic Questions Macro')}
               </div>
             </section>
           </div>
         )}
 
-        {/* TOPIC 5: UNIVERSAL CLEAN FIX */}
+        {/* TOPIC 5: KEY ISSUES & WORK.INK */}
+        {activeTopic === 'key-system' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Authentication &amp; Links</span>
+              <h1 className="doc-title">Key Issues &amp; Work.ink Fix</h1>
+              <p className="doc-subtitle">
+                Resolving key system failures, work.ink mobile data workaround, and bypasser policies.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: key</span>
+                  <h3>Key Generation Inquiries</h3>
+                </div>
+                <p>
+                  Support staff <strong>cannot generate keys</strong> for users manually. If a user asks for a key, send:
+                </p>
+                {renderMacro('key', 'Key System Policy')}
+              </div>
+
+              <div className="playbook-card" style={{ marginTop: 16 }}>
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: workink</span>
+                  <h3>Work.ink Link Not Working Fix</h3>
+                </div>
+                <p>
+                  If a user gets blocked or stuck on work.ink links:
+                </p>
+                <ol className="step-list">
+                  <li>Have the user open the link on their mobile phone.</li>
+                  <li><strong>Switch to Mobile Data</strong> (ensure Wi-Fi is completely turned OFF).</li>
+                  <li>Use a mobile browser without ad-blockers and ensure VPNs are disabled.</li>
+                  <li>Once the key/download link is generated, copy and send it to their PC.</li>
+                </ol>
+                {renderMacro('workink', 'Work.ink Mobile Data Workaround')}
+              </div>
+
+              <div className="playbook-card" style={{ marginTop: 16 }}>
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: bypasser</span>
+                  <h3>Link Bypasser Policy</h3>
+                </div>
+                <p>
+                  If a user admits to bypassing ads or using bypass extensions:
+                </p>
+                {renderMacro('bypasser', 'Refusal of Support for Link Bypassers')}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* TOPIC 6: UNIVERSAL CLEAN FIX */}
         {activeTopic === 'universal' && (
           <div className="doc-page-view">
             <header className="doc-hero">
@@ -644,12 +628,56 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Temporarily disable third-party antivirus shields or add folder exclusions.</li>
                   <li>Run the <strong>Madium Installer</strong> as Administrator.</li>
                 </ol>
+                {renderMacro('universal', 'Universal Clean Fix Macro')}
               </div>
             </section>
           </div>
         )}
 
-        {/* TOPIC 6: CLOUDFLARE WARP */}
+        {/* TOPIC 7: CORRUPTED BIN REPLACEMENT */}
+        {activeTopic === 'bin-replacement' && (
+          <div className="doc-page-view">
+            <header className="doc-hero">
+              <span className="doc-pill">Binary Replacement</span>
+              <h1 className="doc-title">Corrupted Bin Replacement</h1>
+              <p className="doc-subtitle">
+                Manual replacement of damaged or missing injector binary files.
+              </p>
+            </header>
+
+            <section className="doc-section">
+              <div className="playbook-card">
+                <div className="playbook-header">
+                  <span className="playbook-badge">Macro: bin</span>
+                  <h3>Bin Folder Replacement Steps</h3>
+                </div>
+                <p>
+                  If injector binaries inside <code>%localappdata%/Madium/Bin</code> are corrupted, locked, or missing:
+                </p>
+                <ol className="step-list">
+                  <li>Press <code>Windows Key + R</code>, type <code>%localappdata%/Madium</code>, and press Enter.</li>
+                  <li>Delete the existing <code>Bin</code> folder inside.</li>
+                  <li>
+                    Download and extract the latest Bin folder from Gofile:{' '}
+                    <a
+                      href="https://gofile.io/d/ySADPi"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="doc-resource-link"
+                    >
+                      gofile.io/d/ySADPi {EXT_SVG}
+                    </a>
+                  </li>
+                  <li>Drag and drop the extracted <code>Bin</code> folder into the Madium directory.</li>
+                  <li>Restart Madium and test injecting.</li>
+                </ol>
+                {renderMacro('bin', 'Bin Folder Replacement Macro')}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* TOPIC 8: CLOUDFLARE WARP */}
         {activeTopic === 'cloudflare' && (
           <div className="doc-page-view">
             <header className="doc-hero">
@@ -663,11 +691,11 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: vpn</span>
-                  <h3>Cloudflare WARP (1.1.1.1) Solution</h3>
+                  <span className="playbook-badge">Macro: vpn / lastresort</span>
+                  <h3>Cloudflare WARP &amp; DNS over HTTPS Solution</h3>
                 </div>
                 <p>
-                  If a user encounters network errors, key system ratelimits, or ISP blocking:
+                  If a user encounters network errors, backend ratelimits, or ISP blocking:
                 </p>
 
                 <div className="cloudflare-feature-box">
@@ -702,17 +730,21 @@ export default function GuideContent({ qrs }: Props) {
                       </a>
                       .
                     </li>
-                    <li>Launch the installer and select <strong>Private Browsing</strong>.</li>
+                    <li>Launch the installer and select <strong>Private Browsing</strong> or <strong>Traffic and DNS (UDP)</strong>.</li>
                     <li>Toggle the switch to <strong>Connected</strong>.</li>
                     <li>Relaunch Madium and attempt attaching again.</li>
                   </ol>
                 </div>
+
+                {renderMacro('vpn', 'Cloudflare WARP & Windows 11 DNS Fix')}
+                {renderMacro('lastresort', 'WARP Setup Protocol')}
+                {renderMacro('backend', 'Backend Ratelimits Notification')}
               </div>
             </section>
           </div>
         )}
 
-        {/* TOPIC 7: ANTIVIRUS & FIREWALL */}
+        {/* TOPIC 9: ANTIVIRUS & FIREWALL */}
         {activeTopic === 'antivirus' && (
           <div className="doc-page-view">
             <header className="doc-hero">
@@ -748,6 +780,8 @@ export default function GuideContent({ qrs }: Props) {
                   </div>
                 </div>
 
+                {renderMacro('exclude', 'Windows Security Exclusions Macro')}
+
                 <div className="callout callout-tip" style={{ marginTop: 14 }}>
                   <div className="callout-icon">{ALERT_SVG}</div>
                   <div className="callout-body">
@@ -759,26 +793,28 @@ export default function GuideContent({ qrs }: Props) {
                     </p>
                   </div>
                 </div>
+
+                {renderMacro('firewall', 'Firewall Inbound/Outbound Exclusions Macro')}
               </div>
             </section>
           </div>
         )}
 
-        {/* TOPIC 8: ROBLOX CRASHES & LAUNCHERS */}
+        {/* TOPIC 10: ROBLOX CRASHES & LAUNCHERS */}
         {activeTopic === 'roblox' && (
           <div className="doc-page-view">
             <header className="doc-hero">
               <span className="doc-pill">Client Crashes</span>
               <h1 className="doc-title">Roblox Crashes &amp; Launchers</h1>
               <p className="doc-subtitle">
-                Resolve immediate crash-on-inject and test alternative custom launchers.
+                Resolve immediate crash-on-inject, version mismatches, and test alternative custom launchers.
               </p>
             </header>
 
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: testqr / alt</span>
+                  <span className="playbook-badge">Macro: dx11 / mismatch / blank / alt</span>
                   <h3>Crash Troubleshooting Steps</h3>
                 </div>
                 <p>
@@ -809,31 +845,48 @@ export default function GuideContent({ qrs }: Props) {
                     </div>
                   </li>
                 </ul>
+
+                {renderMacro('dx11', 'Open Roblox First Macro')}
+                {renderMacro('mismatch', 'Version Mismatch Cleanup Macro')}
+                {renderMacro('blank', 'Inject via Roblox Instances Macro')}
+                {renderMacro('alt', 'Alternative Launchers Macro')}
+                {renderMacro('old', "Fix couldn't read version.txt / 16-bit App Macro")}
+                {renderMacro('crash', 'Crash Policy Macro')}
               </div>
             </section>
           </div>
         )}
 
-        {/* TOPIC 9: WEBVIEW2 CORRUPTION */}
+        {/* TOPIC 11: WEBVIEW2 CORRUPTION */}
         {activeTopic === 'webview' && (
           <div className="doc-page-view">
             <header className="doc-hero">
               <span className="doc-pill">UI Renderer</span>
               <h1 className="doc-title">WebView2 Corruptions</h1>
               <p className="doc-subtitle">
-                Fix blank white or black screens caused by corrupted Microsoft WebView2 runtimes.
+                Fix blank white or black screens caused by corrupted Microsoft WebView2 runtimes or permissions.
               </p>
             </header>
 
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: webview</span>
-                  <h3>Edge / WebView2 Folder Copy Fix</h3>
+                  <span className="playbook-badge">Macro: webview / corruptweb</span>
+                  <h3>WebView2 Fix Procedures</h3>
                 </div>
                 <p>
                   If the Madium UI opens as a blank white/black window or displays a WebView error:
                 </p>
+
+                <h4>Method 1: Folder Permissions</h4>
+                <ol className="step-list">
+                  <li>Press <code>Windows Key + E</code> and navigate to <code>C:\Users\%username%\</code>.</li>
+                  <li>If prompted, click <strong>Allow</strong> or <strong>Continue</strong>.</li>
+                  <li>Restart Madium.</li>
+                </ol>
+                {renderMacro('webview', 'WebView Permissions Macro')}
+
+                <h4 style={{ marginTop: 16 }}>Method 2: Edge Folder Copy Fix</h4>
                 <ol className="step-list">
                   <li>Navigate to: <code>C:\Program Files (x86)\Microsoft</code></li>
                   <li>Delete the folder named <code>EdgeWebView</code>.</li>
@@ -841,12 +894,13 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Rename <code>Edge - Copy</code> to <code>EdgeWebView</code>.</li>
                   <li>Relaunch Madium.</li>
                 </ol>
+                {renderMacro('corruptweb', 'Corrupted WebView2 Edge Copy Macro')}
               </div>
             </section>
           </div>
         )}
 
-        {/* TOPIC 10: REQUIRED DEPENDENCIES */}
+        {/* TOPIC 12: REQUIRED DEPENDENCIES */}
         {activeTopic === 'dependencies' && (
           <div className="doc-page-view">
             <header className="doc-hero">
@@ -886,12 +940,13 @@ export default function GuideContent({ qrs }: Props) {
                 <p className="doc-subnote" style={{ marginTop: 10 }}>
                   <strong>DirectX Installation Note:</strong> Uncheck &ldquo;Install Bing Bar&rdquo; during setup, then restart the PC after completion.
                 </p>
+                {renderMacro('dep', 'Dependencies Macro')}
               </div>
             </section>
           </div>
         )}
 
-        {/* TOPIC 11: ANALYSIS LOGS */}
+        {/* TOPIC 13: ANALYSIS LOGS */}
         {activeTopic === 'analysis' && (
           <div className="doc-page-view">
             <header className="doc-hero">
@@ -926,6 +981,7 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Ask the user to double click and run <code>analysis.bat</code>.</li>
                   <li>Retrieve the generated <code>Madium_Analysis.txt</code> from their Desktop and forward to Senior Support / Devs.</li>
                 </ol>
+                {renderMacro('anal', 'Analysis Log Macro')}
               </div>
             </section>
           </div>
@@ -961,7 +1017,7 @@ export default function GuideContent({ qrs }: Props) {
             </button>
           )}
         </footer>
-      </article>
+      </main>
     </div>
   );
 }
