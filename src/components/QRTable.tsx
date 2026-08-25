@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import type { QR, Config } from '@/lib/types';
-import { mdToHtml, highlightMatch } from '@/lib/markdown';
+import { mdToHtml, highlightMatch, renderFileCard, getFileMeta } from '@/lib/markdown';
 import { copyText } from '@/lib/clipboard';
 
 /* ── Icons ── */
@@ -360,6 +360,19 @@ export default function QRTable({ qrs, config }: Props) {
                                     </div>
                                   );
                                 }
+
+                                const fileMeta = getFileMeta(att);
+                                if (fileMeta.isDownloadableFile) {
+                                  return (
+                                    <div
+                                      key={aIdx}
+                                      dangerouslySetInnerHTML={{
+                                        __html: renderFileCard(att, fileMeta),
+                                      }}
+                                    />
+                                  );
+                                }
+
                                 return (
                                   <div key={aIdx} className="dc-media-link">
                                     <a href={att} target="_blank" rel="noopener">{att}</a>

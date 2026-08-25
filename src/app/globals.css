@@ -593,6 +593,148 @@ mark.hl {
   margin-top: 4px;
 }
 
+/* File Attachment Cards (.bat, .exe, .zip, etc.) */
+.dc-attachments {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dc-file-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 10px 14px;
+  margin: 8px 0;
+  max-width: 440px;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.dc-file-card:hover {
+  border-color: var(--border-focus);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dc-file-icon-box {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #141414;
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+
+.dc-file-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dc-icon-script {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.dc-icon-exe {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.dc-icon-zip {
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.08);
+  border-color: rgba(168, 85, 247, 0.25);
+}
+
+.dc-icon-doc {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.dc-icon-file {
+  color: var(--fg-2);
+  background: var(--bg-overlay);
+  border-color: var(--border);
+}
+
+.dc-file-ext-tag {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 7.5px;
+  font-weight: 800;
+  font-family: var(--mono);
+  background: #0a0a0a;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 1.3;
+  color: var(--fg);
+  text-transform: uppercase;
+}
+
+.dc-file-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.dc-file-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-sans);
+}
+
+.dc-file-meta {
+  font-size: 11px;
+  color: var(--fg-3);
+  margin-top: 1px;
+}
+
+.dc-file-download-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg-2);
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.dc-file-download-btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+}
+
+.dc-download-svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ─────────────────────────────────────────────
    Status page
 ───────────────────────────────────────────── */

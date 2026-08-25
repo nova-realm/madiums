@@ -7,6 +7,142 @@ export function escHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+export interface FileMeta {
+  isDownloadableFile: boolean;
+  fileName: string;
+  extension: string;
+  label: string;
+  category: 'script' | 'exe' | 'zip' | 'doc' | 'file';
+}
+
+const FILE_EXT_MAP: Record<
+  string,
+  { label: string; category: 'script' | 'exe' | 'zip' | 'doc' | 'file' }
+> = {
+  bat: { label: 'Windows Batch Script', category: 'script' },
+  cmd: { label: 'Command Script', category: 'script' },
+  ps1: { label: 'PowerShell Script', category: 'script' },
+  sh: { label: 'Shell Script', category: 'script' },
+  py: { label: 'Python Script', category: 'script' },
+  lua: { label: 'Lua Script', category: 'script' },
+  vbs: { label: 'VBScript File', category: 'script' },
+  exe: { label: 'Windows Executable', category: 'exe' },
+  msi: { label: 'Windows Installer', category: 'exe' },
+  dll: { label: 'Application DLL', category: 'exe' },
+  scr: { label: 'Screen / Script Executable', category: 'exe' },
+  zip: { label: 'ZIP Archive', category: 'zip' },
+  rar: { label: 'RAR Archive', category: 'zip' },
+  '7z': { label: '7-Zip Archive', category: 'zip' },
+  tar: { label: 'TAR Archive', category: 'zip' },
+  gz: { label: 'GZ Archive', category: 'zip' },
+  txt: { label: 'Text Document', category: 'doc' },
+  log: { label: 'Log File', category: 'doc' },
+  json: { label: 'JSON Document', category: 'doc' },
+  xml: { label: 'XML File', category: 'doc' },
+  cfg: { label: 'Config File', category: 'doc' },
+  ini: { label: 'Config File', category: 'doc' },
+  pdf: { label: 'PDF Document', category: 'doc' },
+};
+
+export function getFileMeta(rawUrl: string, fallbackName?: string): FileMeta {
+  try {
+    const cleanUrl = rawUrl.split('?')[0].split('#')[0];
+    const rawFileName = cleanUrl.split('/').pop() || '';
+    const decodedName = decodeURIComponent(rawFileName);
+    const candidateName =
+      fallbackName && fallbackName.includes('.')
+        ? fallbackName
+        : decodedName || fallbackName || 'file';
+    const ext = (candidateName.split('.').pop() || '').toLowerCase();
+
+    if (FILE_EXT_MAP[ext]) {
+      return {
+        isDownloadableFile: true,
+        fileName: candidateName,
+        extension: ext,
+        label: FILE_EXT_MAP[ext].label,
+        category: FILE_EXT_MAP[ext].category,
+      };
+    }
+
+    // Check if it is a Discord CDN attachment with any non-media file
+    if (
+      rawUrl.includes('cdn.discordapp.com/attachments/') ||
+      rawUrl.includes('media.discordapp.net/attachments/')
+    ) {
+      if (
+        ext &&
+        ![
+          'png',
+          'jpg',
+          'jpeg',
+          'gif',
+          'webp',
+          'svg',
+          'mp4',
+          'webm',
+          'mov',
+        ].includes(ext)
+      ) {
+        return {
+          isDownloadableFile: true,
+          fileName: candidateName,
+          extension: ext,
+          label: `${ext.toUpperCase()} Attachment`,
+          category: 'file',
+        };
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  return {
+    isDownloadableFile: false,
+    fileName: fallbackName || 'file',
+    extension: '',
+    label: 'File',
+    category: 'file',
+  };
+}
+
+export function renderFileCard(url: string, fileMeta: FileMeta): string {
+  const { fileName, label, category, extension } = fileMeta;
+  const safeUrl = escHtml(url);
+  const safeName = escHtml(fileName);
+  const safeLabel = escHtml(label);
+  const safeExt = escHtml(extension ? extension.toUpperCase() : 'FILE');
+
+  let iconSvg = '';
+  if (category === 'script') {
+    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-file-svg" aria-hidden="true"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>`;
+  } else if (category === 'exe') {
+    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-file-svg" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`;
+  } else if (category === 'zip') {
+    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-file-svg" aria-hidden="true"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path><path d="M10 12h4"></path></svg>`;
+  } else if (category === 'doc') {
+    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-file-svg" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
+  } else {
+    iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-file-svg" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`;
+  }
+
+  const downloadSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-download-svg" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+
+  return `<div class="dc-file-card">
+    <div class="dc-file-icon-box dc-icon-${category}">
+      ${iconSvg}
+      <span class="dc-file-ext-tag">${safeExt}</span>
+    </div>
+    <div class="dc-file-info">
+      <span class="dc-file-name" title="${safeName}">${safeName}</span>
+      <span class="dc-file-meta">${safeLabel}</span>
+    </div>
+    <a href="${safeUrl}" target="_blank" rel="noopener" download="${safeName}" class="dc-file-download-btn" title="Download ${safeName}">
+      ${downloadSvg}
+    </a>
+  </div>`;
+}
+
 function isImageUrl(url: string): boolean {
   return (
     /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(url) ||
@@ -63,6 +199,12 @@ function inline(raw: string): string {
         `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="image" class="dc-img" loading="lazy" /></a></div>`
       );
     }
+
+    const fileMeta = getFileMeta(url, label);
+    if (fileMeta.isDownloadableFile) {
+      return pushToken(renderFileCard(url, fileMeta));
+    }
+
     return pushToken(
       `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(label)}</a>`
     );
@@ -70,13 +212,21 @@ function inline(raw: string): string {
 
   // 5. Discord angle bracket links: <https://...>
   s = s.replace(/<(https?:\/\/[^\s>]+)>/g, (_, url) => {
+    const fileMeta = getFileMeta(url);
+    if (fileMeta.isDownloadableFile) {
+      return pushToken(renderFileCard(url, fileMeta));
+    }
     return pushToken(
       `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`
     );
   });
 
-  // 6. Bare URLs (auto-linking)
+  // 6. Bare URLs (auto-linking with image, video, and file card detection)
   s = s.replace(/(https?:\/\/[^\s<)\]>"']+)/g, (url) => {
+    const fileMeta = getFileMeta(url);
+    if (fileMeta.isDownloadableFile) {
+      return pushToken(renderFileCard(url, fileMeta));
+    }
     if (isImageUrl(url)) {
       return pushToken(
         `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="Attachment" class="dc-img" loading="lazy" /></a></div>`
