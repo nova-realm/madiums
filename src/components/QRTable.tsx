@@ -47,6 +47,7 @@ export default function QRTable({ qrs, config }: Props) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<Set<string>>(new Set());
+  const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -61,10 +62,10 @@ export default function QRTable({ qrs, config }: Props) {
       )
     : items;
 
-  /* Cmd/Ctrl+K → focus search */
+  /* Focus search on '/' keypress when not typing in an input */
   useEffect(() => {
     function handler(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if (e.key === '/' && document.activeElement !== searchRef.current && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
         e.preventDefault();
         searchRef.current?.focus();
         searchRef.current?.select();
@@ -132,7 +133,7 @@ export default function QRTable({ qrs, config }: Props) {
     const ok = await copyText(qr.text || '');
     if (ok) {
       setCopied((prev) => new Set(prev).add(qr.id));
-      pushToast('Copied to clipboard');
+      pushToast(`Copied text for "${qr.title}"`);
       setTimeout(
         () =>
           setCopied((prev) => {
@@ -144,6 +145,17 @@ export default function QRTable({ qrs, config }: Props) {
       );
     } else {
       pushToast("Couldn't copy. Browser blocked clipboard access.", false);
+    }
+  }
+
+  async function handleCopyCommand(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    const cmd = `t!qr ${id}`;
+    const ok = await copyText(cmd);
+    if (ok) {
+      setCopiedCmd(id);
+      pushToast(`Copied bot command "${cmd}"`);
+      setTimeout(() => setCopiedCmd(null), 1600);
     }
   }
 
@@ -277,7 +289,17 @@ export default function QRTable({ qrs, config }: Props) {
                 {/* Row top */}
                 <div style={{ display: 'contents' }}>
                   <div className="qr-cell qr-id" role="cell">
-                    {qr.id}
+                    <button
+                      type="button"
+                      className={`qr-cmd-pill${copiedCmd === qr.id ? ' copied' : ''}`}
+                      title={`Click to copy command "t!qr ${qr.id}"`}
+                      onClick={(e) => handleCopyCommand(e, qr.id)}
+                    >
+                      <code>t!qr {qr.id}</code>
+                      <span className="cmd-copy-tag">
+                        {copiedCmd === qr.id ? '✓' : '⧉'}
+                      </span>
+                    </button>
                   </div>
                   <div
                     className="qr-cell qr-title"
@@ -289,8 +311,8 @@ export default function QRTable({ qrs, config }: Props) {
                   <div className="qr-cell qr-actions" role="cell">
                     <button
                       className={`icon-btn copy-btn${isCopied ? ' copied' : ''}`}
-                      title="Copy to clipboard"
-                      aria-label={`Copy "${qr.title}"`}
+                      title="Copy message text"
+                      aria-label={`Copy text of "${qr.title}"`}
                       onClick={(e) => handleCopy(e, qr)}
                       dangerouslySetInnerHTML={{
                         __html: isCopied ? CHECK_SVG : COPY_SVG,

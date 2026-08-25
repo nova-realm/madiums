@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Config } from '@/lib/types';
@@ -21,6 +23,12 @@ const EXT_SVG = (
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
     <polyline points="15 3 21 3 21 9" />
     <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
+
+const SEARCH_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }} aria-hidden>
+    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
@@ -68,6 +76,12 @@ export default function Topbar({ activePage, config }: TopbarProps) {
     { label: 'Support Server', href: config.madiumSupportInvite,                       icon: DISCORD_SVG },
   ];
 
+  function openSpotlight() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('open-spotlight'));
+    }
+  }
+
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -91,6 +105,18 @@ export default function Topbar({ activePage, config }: TopbarProps) {
               {p.label}
             </Link>
           ))}
+
+          <button
+            type="button"
+            className="topbar-search-btn"
+            onClick={openSpotlight}
+            title="Universal Search (Ctrl + K)"
+            aria-label="Universal Search"
+          >
+            {SEARCH_SVG}
+            <span className="search-btn-label">Search…</span>
+            <kbd className="search-btn-kbd">⌘K</kbd>
+          </button>
 
           <div className="nav-spacer" />
 

@@ -126,6 +126,7 @@ export default function GuideContent({ qrs }: Props) {
   const [activeTopic, setActiveTopic] = useState<GuideTopicKey>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Sync URL topic on initial load or popstate
   useEffect(() => {
@@ -211,22 +212,34 @@ export default function GuideContent({ qrs }: Props) {
     if (!text) return null;
 
     const title = customTitle || qr?.title || `QR: ${qrKey}`;
+    const cmd = `t!qr ${qrKey}`;
+    const isCmdCopied = copiedKey === `cmd-${qrKey}`;
+    const isTextCopied = copiedKey === `text-${qrKey}`;
 
     return (
       <div className="macro-card">
         <div className="macro-card-head">
-          <div className="macro-badge">
-            <code>t!qr {qrKey}</code>
-          </div>
-          <span className="macro-title">{title}</span>
           <button
             type="button"
-            className="code-copy-btn"
-            onClick={() => handleCopy(qrKey, text)}
+            className={`macro-badge-btn${isCmdCopied ? ' copied' : ''}`}
+            onClick={() => handleCopy(`cmd-${qrKey}`, cmd)}
+            title={`Click to copy bot command "${cmd}"`}
           >
-            {copiedKey === qrKey ? CHECK_SVG : COPY_SVG}{' '}
-            {copiedKey === qrKey ? 'Copied' : 'Copy QR'}
+            <code>{cmd}</code>
+            <span className="macro-cmd-tag">{isCmdCopied ? '✓ Copied' : 'Copy Cmd'}</span>
           </button>
+          <span className="macro-title">{title}</span>
+          <div className="macro-head-actions">
+            <button
+              type="button"
+              className={`code-copy-btn${isTextCopied ? ' copied' : ''}`}
+              onClick={() => handleCopy(`text-${qrKey}`, text)}
+              title="Copy message text"
+            >
+              {isTextCopied ? CHECK_SVG : COPY_SVG}{' '}
+              {isTextCopied ? 'Copied Text' : 'Copy Message'}
+            </button>
+          </div>
         </div>
         <div className="macro-card-body">
           <pre className="code-snippet">{text}</pre>
@@ -235,9 +248,85 @@ export default function GuideContent({ qrs }: Props) {
     );
   }
 
+  const currentTopic = TOPICS.find((t) => t.key === activeTopic);
+
   return (
     <div className="doc-layout">
-      {/* ── Left Sidebar Navigation ── */}
+      {/* ── Mobile Topic Selector Banner ── */}
+      <div className="guide-mobile-topbar">
+        <button
+          type="button"
+          className="guide-mobile-trigger"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open Topics Menu"
+        >
+          <div className="guide-mobile-meta">
+            <span className="guide-mobile-tag">{currentTopic?.category || 'Guide'}</span>
+            <span className="guide-mobile-current">{currentTopic?.title}</span>
+          </div>
+          <span className="guide-mobile-badge">☰ Topics</span>
+        </button>
+      </div>
+
+      {/* ── Mobile Drawer Sheet ── */}
+      {drawerOpen && (
+        <div
+          className="guide-drawer-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDrawerOpen(false);
+          }}
+        >
+          <div className="guide-drawer-panel" role="dialog" aria-modal="true">
+            <div className="guide-drawer-header">
+              <span className="guide-drawer-title">Support Handbook Topics</span>
+              <button
+                type="button"
+                className="guide-drawer-close"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="guide-drawer-search">
+              <input
+                type="text"
+                placeholder="Filter topics…"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="doc-filter-input"
+              />
+            </div>
+
+            <div className="guide-drawer-body">
+              {categories.map(([category, items]) => (
+                <div key={category} className="doc-nav-group">
+                  <span className="doc-nav-heading">{category}</span>
+                  {items.map((topic) => {
+                    const isActive = activeTopic === topic.key;
+                    return (
+                      <button
+                        key={topic.key}
+                        type="button"
+                        onClick={() => {
+                          switchTopic(topic.key);
+                          setDrawerOpen(false);
+                        }}
+                        className={`doc-nav-link${isActive ? ' active' : ''}`}
+                      >
+                        {topic.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Left Sidebar Navigation (Desktop) ── */}
       <aside className="doc-sidebar" aria-label="Guide topics">
         <div className="doc-sidebar-header">
           <span className="doc-badge">Support Docs</span>

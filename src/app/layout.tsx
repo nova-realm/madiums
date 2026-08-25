@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import Footer from '@/components/Footer';
 import EasterEgg from '@/components/EasterEgg';
+import SpotlightSearch from '@/components/SpotlightSearch';
 import config from '@data/config.json';
 import eggData from '@data/easter-egg.json';
 
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <Footer config={config} />
         <EasterEgg data={eggData} config={config} />
+        <SpotlightSearch />
       </body>
     </html>
   );
