@@ -187,8 +187,11 @@ function inline(raw: string): string {
     );
   });
 
-  // 4. Standard markdown links: [text](url)
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, label, url) => {
+  // 4. Standard markdown links: [text](url) (supports absolute URLs and relative paths like /guide)
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, rawUrl) => {
+    const url = rawUrl.trim();
+    const isExternal = url.startsWith('http://') || url.startsWith('https://');
+
     if (
       isImageUrl(url) &&
       (label.toLowerCase() === 'image' ||
@@ -205,8 +208,11 @@ function inline(raw: string): string {
       return pushToken(renderFileCard(url, fileMeta));
     }
 
+    const targetAttr = isExternal ? ' target="_blank" rel="noopener"' : '';
+    const arrowSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dc-link-arrow" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+
     return pushToken(
-      `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(label)}</a>`
+      `<a href="${escHtml(url)}"${targetAttr} class="dc-link">${escHtml(label)} ${arrowSvg}</a>`
     );
   });
 
