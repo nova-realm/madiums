@@ -205,18 +205,18 @@ export default function GuideContent({ qrs }: Props) {
     return Array.from(map.entries());
   }, [filteredTopics]);
 
-  function renderMacro(qrKey: string, customTitle?: string) {
+  function renderQR(qrKey: string, customTitle?: string) {
     const qr = qrMap.get(qrKey.toLowerCase());
     const text = qr?.text || '';
     if (!text) return null;
 
-    const title = customTitle || qr?.title || `Macro: ${qrKey}`;
+    const title = customTitle || qr?.title || `QR: ${qrKey}`;
 
     return (
       <div className="macro-card">
         <div className="macro-card-head">
           <div className="macro-badge">
-            <code>/{qrKey}</code>
+            <code>t!qr {qrKey}</code>
           </div>
           <span className="macro-title">{title}</span>
           <button
@@ -225,7 +225,7 @@ export default function GuideContent({ qrs }: Props) {
             onClick={() => handleCopy(qrKey, text)}
           >
             {copiedKey === qrKey ? CHECK_SVG : COPY_SVG}{' '}
-            {copiedKey === qrKey ? 'Copied' : 'Copy Macro'}
+            {copiedKey === qrKey ? 'Copied' : 'Copy QR'}
           </button>
         </div>
         <div className="macro-card-body">
@@ -358,7 +358,7 @@ export default function GuideContent({ qrs }: Props) {
                     <span className="role-badge badge-trial">
                       <span className="badge-dot" /> Trial Support
                     </span>
-                    <span className="role-id">Level 1 • Training Phase</span>
+                    <span className="role-id">• Training Phase</span>
                   </div>
                   <p className="role-summary">
                     You are in your trial phase, learning how to diagnose and resolve user issues.
@@ -371,7 +371,7 @@ export default function GuideContent({ qrs }: Props) {
                       <strong className="highlight-text">Ticket Observation:</strong> In your initial period, you are <strong>not allowed to answer tickets directly</strong> unless explicitly permitted by a Senior or Lead Support.
                     </li>
                     <li>
-                      <strong>Take Notes:</strong> Observe senior staff handling tickets, learn common macro triggers, and study this guide.
+                      <strong>Take Notes:</strong> Observe senior staff handling tickets, learn common quick reply triggers, and study this guide.
                     </li>
                   </ul>
                 </div>
@@ -382,7 +382,7 @@ export default function GuideContent({ qrs }: Props) {
                     <span className="role-badge badge-support">
                       <span className="badge-dot" /> Support
                     </span>
-                    <span className="role-id">Level 2 • Frontline</span>
+                    <span className="role-id">• Frontline</span>
                   </div>
                   <p className="role-summary">
                     You have passed trial and are an official frontline support member.
@@ -395,7 +395,7 @@ export default function GuideContent({ qrs }: Props) {
                       <strong>Ticket Responsibility:</strong> After claiming a ticket, see it through to resolution. Avoid jumping between tickets without finishing them.
                     </li>
                     <li>
-                      <strong>Macro Usage:</strong> Use predefined macros (<code>/ask</code>, <code>/universal</code>, <code>/vpn</code>, <code>/key</code>) appropriately.
+                      <strong>QR Usage:</strong> Use predefined quick replies (<code>t!qr ask</code>, <code>t!qr universal</code>, <code>t!qr vpn</code>, <code>t!qr key</code>) appropriately.
                     </li>
                   </ul>
                 </div>
@@ -406,7 +406,7 @@ export default function GuideContent({ qrs }: Props) {
                     <span className="role-badge badge-senior">
                       <span className="badge-dot" /> Senior Support (UNCS)
                     </span>
-                    <span className="role-id">Level 3 • Supervisors</span>
+                    <span className="role-id">• Supervisors</span>
                   </div>
                   <p className="role-summary">
                     Experienced staff responsible for guidance, escalations, and moderation.
@@ -430,7 +430,7 @@ export default function GuideContent({ qrs }: Props) {
                     <span className="role-badge badge-lead">
                       <span className="badge-dot" /> Lead Support
                     </span>
-                    <span className="role-id">Level 4 • Department Lead</span>
+                    <span className="role-id">• Department Lead</span>
                   </div>
                   <p className="role-summary">
                     Executive team leaders managing team operations, policies, and blacklists.
@@ -489,15 +489,15 @@ export default function GuideContent({ qrs }: Props) {
                   after bypassing, use the <code>bypasser</code> quick reply and deny support.
                 </li>
                 <li>
-                  <strong>Inactivity (10 Minute Rule):</strong> Use the <code>?</code> quick reply. If no response is received within 10 minutes,
+                  <strong>Inactivity (10 Minute Rule):</strong> Use the <code>?</code> quick reply (<code>t!qr ?</code>). If no response is received within 10 minutes,
                   the ticket can be safely closed.
                 </li>
               </ul>
 
-              <h3>Inactivity &amp; Patience Macros</h3>
-              {renderMacro('?', 'Inactivity Check (10 Minute Rule)')}
-              {renderMacro('wait', 'Patient Review Message')}
-              {renderMacro('unfixable', 'Final Recommendation / Unfixable')}
+              <h3>Inactivity &amp; Patience Quick Replies</h3>
+              {renderQR('?', 'Inactivity Check (10 Minute Rule)')}
+              {renderQR('wait', 'Patient Review Message')}
+              {renderQR('unfixable', 'Final Recommendation / Unfixable')}
 
               <h3>External Fixes &amp; Batch File Security</h3>
               <div className="callout callout-warning">
@@ -528,13 +528,13 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: ask</span>
+                  <span className="playbook-badge">QR: ask</span>
                   <h3>Diagnostic Questionnaire</h3>
                 </div>
                 <p>
-                  Before guessing fixes, always send the standard diagnostic questions (Macro: <code>ask</code>) to gather essential system context:
+                  Before guessing fixes, always send the standard diagnostic questions (<code>t!qr ask</code>) to gather essential system context:
                 </p>
-                {renderMacro('ask', 'Diagnostic Questions Macro')}
+                {renderQR('ask', 'Diagnostic Questions QR')}
               </div>
             </section>
           </div>
@@ -554,18 +554,18 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: key</span>
+                  <span className="playbook-badge">QR: key</span>
                   <h3>Key Generation Inquiries</h3>
                 </div>
                 <p>
                   Support staff <strong>cannot generate keys</strong> for users manually. If a user asks for a key, send:
                 </p>
-                {renderMacro('key', 'Key System Policy')}
+                {renderQR('key', 'Key System Policy')}
               </div>
 
               <div className="playbook-card" style={{ marginTop: 16 }}>
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: workink</span>
+                  <span className="playbook-badge">QR: workink</span>
                   <h3>Work.ink Link Not Working Fix</h3>
                 </div>
                 <p>
@@ -577,18 +577,18 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Use a mobile browser without ad-blockers and ensure VPNs are disabled.</li>
                   <li>Once the key/download link is generated, copy and send it to their PC.</li>
                 </ol>
-                {renderMacro('workink', 'Work.ink Mobile Data Workaround')}
+                {renderQR('workink', 'Work.ink Mobile Data Workaround')}
               </div>
 
               <div className="playbook-card" style={{ marginTop: 16 }}>
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: bypasser</span>
+                  <span className="playbook-badge">QR: bypasser</span>
                   <h3>Link Bypasser Policy</h3>
                 </div>
                 <p>
                   If a user admits to bypassing ads or using bypass extensions:
                 </p>
-                {renderMacro('bypasser', 'Refusal of Support for Link Bypassers')}
+                {renderQR('bypasser', 'Refusal of Support for Link Bypassers')}
               </div>
             </section>
           </div>
@@ -608,7 +608,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: universal</span>
+                  <span className="playbook-badge">QR: universal</span>
                   <h3>Clean Reinstallation Steps</h3>
                 </div>
                 <p>
@@ -632,7 +632,7 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Temporarily disable third-party antivirus shields or add folder exclusions.</li>
                   <li>Run the <strong>Madium Installer</strong> as Administrator.</li>
                 </ol>
-                {renderMacro('universal', 'Universal Clean Fix Macro')}
+                {renderQR('universal', 'Universal Clean Fix QR')}
               </div>
             </section>
           </div>
@@ -652,7 +652,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: bin</span>
+                  <span className="playbook-badge">QR: bin</span>
                   <h3>Bin Folder Replacement Steps</h3>
                 </div>
                 <p>
@@ -675,7 +675,7 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Drag and drop the extracted <code>Bin</code> folder into the Madium directory.</li>
                   <li>Restart Madium and test injecting.</li>
                 </ol>
-                {renderMacro('bin', 'Bin Folder Replacement Macro')}
+                {renderQR('bin', 'Bin Folder Replacement QR')}
               </div>
             </section>
           </div>
@@ -695,7 +695,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: vpn / lastresort</span>
+                  <span className="playbook-badge">QR: vpn / lastresort</span>
                   <h3>Cloudflare WARP &amp; DNS over HTTPS Solution</h3>
                 </div>
                 <p>
@@ -740,9 +740,9 @@ export default function GuideContent({ qrs }: Props) {
                   </ol>
                 </div>
 
-                {renderMacro('vpn', 'Cloudflare WARP & Windows 11 DNS Fix')}
-                {renderMacro('lastresort', 'WARP Setup Protocol')}
-                {renderMacro('backend', 'Backend Ratelimits Notification')}
+                {renderQR('vpn', 'Cloudflare WARP & Windows 11 DNS Fix')}
+                {renderQR('lastresort', 'WARP Setup Protocol')}
+                {renderQR('backend', 'Backend Ratelimits Notification')}
               </div>
             </section>
           </div>
@@ -762,7 +762,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: exclude / firewall</span>
+                  <span className="playbook-badge">QR: exclude / firewall</span>
                   <h3>3 Mandatory Exclusion Folders</h3>
                 </div>
                 <p>
@@ -784,7 +784,7 @@ export default function GuideContent({ qrs }: Props) {
                   </div>
                 </div>
 
-                {renderMacro('exclude', 'Windows Security Exclusions Macro')}
+                {renderQR('exclude', 'Windows Security Exclusions QR')}
 
                 <div className="callout callout-tip" style={{ marginTop: 14 }}>
                   <div className="callout-icon">{ALERT_SVG}</div>
@@ -798,7 +798,7 @@ export default function GuideContent({ qrs }: Props) {
                   </div>
                 </div>
 
-                {renderMacro('firewall', 'Firewall Inbound/Outbound Exclusions Macro')}
+                {renderQR('firewall', 'Firewall Inbound/Outbound Exclusions QR')}
               </div>
             </section>
           </div>
@@ -818,7 +818,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: dx11 / mismatch / blank / alt</span>
+                  <span className="playbook-badge">QR: dx11 / mismatch / blank / alt</span>
                   <h3>Crash Troubleshooting Steps</h3>
                 </div>
                 <p>
@@ -850,12 +850,12 @@ export default function GuideContent({ qrs }: Props) {
                   </li>
                 </ul>
 
-                {renderMacro('dx11', 'Open Roblox First Macro')}
-                {renderMacro('mismatch', 'Version Mismatch Cleanup Macro')}
-                {renderMacro('blank', 'Inject via Roblox Instances Macro')}
-                {renderMacro('alt', 'Alternative Launchers Macro')}
-                {renderMacro('old', "Fix couldn't read version.txt / 16-bit App Macro")}
-                {renderMacro('crash', 'Crash Policy Macro')}
+                {renderQR('dx11', 'Open Roblox First QR')}
+                {renderQR('mismatch', 'Version Mismatch Cleanup QR')}
+                {renderQR('blank', 'Inject via Roblox Instances QR')}
+                {renderQR('alt', 'Alternative Launchers QR')}
+                {renderQR('old', "Fix couldn't read version.txt / 16-bit App QR")}
+                {renderQR('crash', 'Crash Policy QR')}
               </div>
             </section>
           </div>
@@ -875,7 +875,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: webview / corruptweb</span>
+                  <span className="playbook-badge">QR: webview / corruptweb</span>
                   <h3>WebView2 Fix Procedures</h3>
                 </div>
                 <p>
@@ -888,7 +888,7 @@ export default function GuideContent({ qrs }: Props) {
                   <li>If prompted, click <strong>Allow</strong> or <strong>Continue</strong>.</li>
                   <li>Restart Madium.</li>
                 </ol>
-                {renderMacro('webview', 'WebView Permissions Macro')}
+                {renderQR('webview', 'WebView Permissions QR')}
 
                 <h4 style={{ marginTop: 16 }}>Method 2: Edge Folder Copy Fix</h4>
                 <ol className="step-list">
@@ -898,7 +898,7 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Rename <code>Edge - Copy</code> to <code>EdgeWebView</code>.</li>
                   <li>Relaunch Madium.</li>
                 </ol>
-                {renderMacro('corruptweb', 'Corrupted WebView2 Edge Copy Macro')}
+                {renderQR('corruptweb', 'Corrupted WebView2 Edge Copy QR')}
               </div>
             </section>
           </div>
@@ -918,7 +918,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: dep</span>
+                  <span className="playbook-badge">QR: dep</span>
                   <h3>Official Microsoft Runtimes</h3>
                 </div>
                 <p>
@@ -944,7 +944,7 @@ export default function GuideContent({ qrs }: Props) {
                 <p className="doc-subnote" style={{ marginTop: 10 }}>
                   <strong>DirectX Installation Note:</strong> Uncheck &ldquo;Install Bing Bar&rdquo; during setup, then restart the PC after completion.
                 </p>
-                {renderMacro('dep', 'Dependencies Macro')}
+                {renderQR('dep', 'Dependencies QR')}
               </div>
             </section>
           </div>
@@ -964,7 +964,7 @@ export default function GuideContent({ qrs }: Props) {
             <section className="doc-section">
               <div className="playbook-card">
                 <div className="playbook-header">
-                  <span className="playbook-badge">Macro: anal</span>
+                  <span className="playbook-badge">QR: anal</span>
                   <h3>Log Collection Procedure</h3>
                 </div>
                 <p>
@@ -985,7 +985,7 @@ export default function GuideContent({ qrs }: Props) {
                   <li>Ask the user to double click and run <code>analysis.bat</code>.</li>
                   <li>Retrieve the generated <code>Madium_Analysis.txt</code> from their Desktop and forward to Senior Support / Devs.</li>
                 </ol>
-                {renderMacro('anal', 'Analysis Log Macro')}
+                {renderQR('anal', 'Analysis Log QR')}
               </div>
             </section>
           </div>
