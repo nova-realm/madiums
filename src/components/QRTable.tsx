@@ -329,6 +329,45 @@ export default function QRTable({ qrs, config }: Props) {
                           className={`dc-body${hasText ? '' : ' empty'}`}
                           dangerouslySetInnerHTML={{ __html: bodyHtml }}
                         />
+
+                        {qr.attachments && qr.attachments.length > 0 && (
+                          <div className="dc-attachments">
+                            {qr.attachments
+                              .filter((att) => !(qr.text || '').includes(att))
+                              .map((att, aIdx) => {
+                                const isImg =
+                                  /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(att) ||
+                                  att.includes('cdn.discordapp.com/attachments/') ||
+                                  att.includes('media.discordapp.net/attachments/');
+                                const isVid = /\.(mp4|webm|mov)(\?.*)?$/i.test(att);
+
+                                if (isImg) {
+                                  return (
+                                    <div key={aIdx} className="dc-media-wrap">
+                                      <a href={att} target="_blank" rel="noopener">
+                                        <img src={att} alt="Attachment" className="dc-img" loading="lazy" />
+                                      </a>
+                                    </div>
+                                  );
+                                }
+                                if (isVid) {
+                                  return (
+                                    <div key={aIdx} className="dc-media-wrap">
+                                      <video src={att} controls className="dc-video" preload="metadata" />
+                                      <div className="dc-media-link">
+                                        <a href={att} target="_blank" rel="noopener">{att}</a>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div key={aIdx} className="dc-media-link">
+                                    <a href={att} target="_blank" rel="noopener">{att}</a>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

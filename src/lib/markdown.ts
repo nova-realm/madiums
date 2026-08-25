@@ -19,53 +19,95 @@ function isVideoUrl(url: string): boolean {
   return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
 }
 
-/** Inline Discord markdown → HTML */
+/** Tokenizer to safely replace markdown without regex collisions on generated HTML */
 function inline(raw: string): string {
-  let s = escHtml(raw);
+  const tokens: string[] = [];
+  const pushToken = (html: string) => {
+    const placeholder = `\x00TOKEN_${tokens.length}\x00`;
+    tokens.push(html);
+    return placeholder;
+  };
 
-  // Code snippets
+  let s = raw;
+
+  // 1. Markdown images: ![alt](url)
+  s = s.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi, (_, alt, url) => {
+    return pushToken(
+      `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="${escHtml(alt || 'Attachment')}" class="dc-img" loading="lazy" /></a></div>`
+    );
+  });
+
+  // 2. Image link shortcuts: [image](url), [img](url), [screenshot](url), [attachment](url)
+  s = s.replace(/\[(image|img|screenshot|attachment|photo)\]\((https?:\/\/[^)]+)\)/gi, (_, label, url) => {
+    return pushToken(
+      `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="${escHtml(label)}" class="dc-img" loading="lazy" /></a></div>`
+    );
+  });
+
+  // 3. Video link shortcuts: [video](url), [vid](url), [clip](url)
+  s = s.replace(/\[(video|vid|clip)\]\((https?:\/\/[^)]+)\)/gi, (_, _label, url) => {
+    return pushToken(
+      `<div class="dc-media-wrap"><video src="${escHtml(url)}" controls class="dc-video" preload="metadata"></video></div>`
+    );
+  });
+
+  // 4. Standard markdown links: [text](url)
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, label, url) => {
+    if (
+      isImageUrl(url) &&
+      (label.toLowerCase() === 'image' ||
+        label.toLowerCase() === 'img' ||
+        label.toLowerCase() === 'screenshot')
+    ) {
+      return pushToken(
+        `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="image" class="dc-img" loading="lazy" /></a></div>`
+      );
+    }
+    return pushToken(
+      `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(label)}</a>`
+    );
+  });
+
+  // 5. Discord angle bracket links: <https://...>
+  s = s.replace(/<(https?:\/\/[^\s>]+)>/g, (_, url) => {
+    return pushToken(
+      `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`
+    );
+  });
+
+  // 6. Bare URLs (auto-linking)
+  s = s.replace(/(https?:\/\/[^\s<)\]>"']+)/g, (url) => {
+    if (isImageUrl(url)) {
+      return pushToken(
+        `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="Attachment" class="dc-img" loading="lazy" /></a></div>`
+      );
+    }
+    if (isVideoUrl(url)) {
+      return pushToken(
+        `<div class="dc-media-wrap"><video src="${escHtml(url)}" controls class="dc-video" preload="metadata"></video><div class="dc-media-link"><a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a></div></div>`
+      );
+    }
+    return pushToken(
+      `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`
+    );
+  });
+
+  // Safe HTML escaping for remaining non-token characters
+  s = escHtml(s);
+
+  // 7. Inline code: `code`
   s = s.replace(/`([^`]+)`/g, (_, c) => `<code class="dc-code">${c}</code>`);
 
-  // Bold, underline, strikethrough
+  // 8. Text formatting: **bold**, __underline__, ~~strike~~
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/__([^_]+)__/g, '<u>$1</u>');
   s = s.replace(/~~([^~]+)~~/g, '<s>$1</s>');
 
-  // Explicit markdown images: ![alt](url)
-  s = s.replace(
-    /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi,
-    '<div class="dc-media-wrap"><a href="$2" target="_blank" rel="noopener"><img src="$2" alt="$1" class="dc-img" loading="lazy" /></a></div>'
-  );
-
-  // Markdown image shortcuts: [image](url), [screenshot](url), [attachment](url)
-  s = s.replace(
-    /\[(image|img|screenshot|attachment|photo)\]\((https?:\/\/[^)]+)\)/gi,
-    '<div class="dc-media-wrap"><a href="$2" target="_blank" rel="noopener"><img src="$2" alt="$1" class="dc-img" loading="lazy" /></a></div>'
-  );
-
-  // Markdown video shortcuts: [video](url), [vid](url)
-  s = s.replace(
-    /\[(video|vid|clip)\]\((https?:\/\/[^)]+)\)/gi,
-    '<div class="dc-media-wrap"><video src="$2" controls class="dc-video" preload="metadata"></video></div>'
-  );
-
-  // Standard markdown links: [text](url)
-  s = s.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener">$1</a>'
-  );
-
-  // Discord angle bracket links: <https://...>
-  s = s.replace(
-    /&lt;(https?:\/\/[^\s&]+)&gt;/g,
-    '<a href="$1" target="_blank" rel="noopener">$1</a>'
-  );
-
-  // Autolink bare URLs
-  s = s.replace(
-    /(^|[\s(])(https?:\/\/[^\s<]+)/g,
-    (m, pre, url) => `${pre}<a href="${url}" target="_blank" rel="noopener">${url}</a>`
-  );
+  // 9. Restore placeholders with exact token HTML
+  tokens.forEach((tok, i) => {
+    const placeholder = `\x00TOKEN_${i}\x00`;
+    s = s.split(placeholder).join(tok);
+  });
 
   return s;
 }
@@ -85,19 +127,6 @@ export function mdToHtml(raw: string): string {
       out += '<div class="dc-spacer"></div>';
       i++;
       continue;
-    }
-
-    // Check if line is a standalone Discord attachment URL (image / video)
-    if (/^https?:\/\/[^\s]+$/i.test(trimmed)) {
-      if (isVideoUrl(trimmed)) {
-        out += `<div class="dc-media-wrap"><video src="${trimmed}" controls class="dc-video" preload="metadata"></video><div class="dc-media-link"><a href="${trimmed}" target="_blank" rel="noopener">${trimmed}</a></div></div>`;
-        i++;
-        continue;
-      } else if (isImageUrl(trimmed)) {
-        out += `<div class="dc-media-wrap"><a href="${trimmed}" target="_blank" rel="noopener"><img src="${trimmed}" alt="Attachment" class="dc-img" loading="lazy" /></a></div>`;
-        i++;
-        continue;
-      }
     }
 
     // Headers
