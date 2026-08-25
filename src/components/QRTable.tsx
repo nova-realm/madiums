@@ -249,7 +249,7 @@ export default function QRTable({ qrs, config }: Props) {
       {/* Table */}
       <div className="qr-table" role="table" aria-label="Quick replies">
         <div className="qr-table-head" role="row">
-          <span role="columnheader">ID</span>
+          <span role="columnheader">Command</span>
           <span role="columnheader">Title</span>
           <span role="columnheader" />
         </div>

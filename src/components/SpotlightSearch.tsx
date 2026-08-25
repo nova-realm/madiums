@@ -351,8 +351,9 @@ export default function SpotlightSearch() {
         <div className="spotlight-footer">
           <div className="spotlight-shortcuts">
             <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
-            <span><kbd>↵</kbd> Select / Copy Text</span>
-            <span><kbd>Shift</kbd>+<kbd>↵</kbd> Copy Command</span>
+            <span><kbd>Enter</kbd> Select / Copy Text</span>
+            <span><kbd>Shift</kbd>+<kbd>Enter</kbd> Copy Command</span>
+            <span className="spotlight-shortcut-hide-mobile"><kbd>Ctrl</kbd>+<kbd>K</kbd> Toggle</span>
           </div>
           {toast && <span className="spotlight-toast">{toast}</span>}
         </div>

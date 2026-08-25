@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import type { Config } from '@/lib/types';
 
 const GLOBE_SVG = (
@@ -27,8 +29,33 @@ const EXT_SVG = (
 );
 
 const SEARCH_SVG = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }} aria-hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }} aria-hidden>
     <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
+// Windows 11 4-tile logo
+const WIN11_SVG = (
+  <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" aria-hidden style={{ display: 'inline-block', verticalAlign: '-1px' }}>
+    <rect x="1" y="1" width="6.2" height="6.2" rx="0.5" />
+    <rect x="8.8" y="1" width="6.2" height="6.2" rx="0.5" />
+    <rect x="1" y="8.8" width="6.2" height="6.2" rx="0.5" />
+    <rect x="8.8" y="8.8" width="6.2" height="6.2" rx="0.5" />
+  </svg>
+);
+
+const MENU_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }} aria-hidden>
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
+const CLOSE_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }} aria-hidden>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
@@ -63,6 +90,14 @@ interface TopbarProps {
 }
 
 export default function Topbar({ activePage, config }: TopbarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Close mobile menu on page transition
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   const pages = [
     { key: 'home',   label: 'Home',          href: '/' },
     { key: 'qrs',    label: 'Quick Replies',  href: '/qrs' },
@@ -83,58 +118,161 @@ export default function Topbar({ activePage, config }: TopbarProps) {
   }
 
   return (
-    <header className="topbar">
-      <div className="topbar-inner">
-        <Link href="/" className="brand">
-          <Image src="/assets/logo-support.png" alt="" width={24} height={24} className="brand-img" />
-          <span className="brand-name">Madium</span>
-          <span className="brand-sep">/</span>
-          <span className="brand-sub">Support Desk</span>
-        </Link>
+    <>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <Link href="/" className="brand">
+            <Image src="/assets/logo-support.png" alt="" width={24} height={24} className="brand-img" priority />
+            <span className="brand-name">Madium</span>
+            <span className="brand-sep">/</span>
+            <span className="brand-sub">Support Desk</span>
+          </Link>
 
-        <div className="topbar-divider" />
+          <div className="topbar-divider" />
 
-        <nav className="main-nav" aria-label="Main navigation">
-          {pages.map(p => (
-            <Link
-              key={p.key}
-              href={p.href}
-              className={`nav-item${activePage === p.key ? ' active' : ''}`}
+          {/* Desktop Navigation */}
+          <nav className="main-nav desktop-nav" aria-label="Main navigation">
+            {pages.map(p => (
+              <Link
+                key={p.key}
+                href={p.href}
+                className={`nav-item${activePage === p.key ? ' active' : ''}`}
+              >
+                {NAV_ICONS[p.key]}
+                {p.label}
+              </Link>
+            ))}
+
+            <button
+              type="button"
+              className="topbar-search-btn"
+              onClick={openSpotlight}
+              title="Universal Search (Ctrl + K)"
+              aria-label="Universal Search"
             >
-              {NAV_ICONS[p.key]}
-              {p.label}
-            </Link>
-          ))}
+              {SEARCH_SVG}
+              <span className="search-btn-label">Search…</span>
+              <kbd className="search-btn-kbd">
+                <span className="win-icon">{WIN11_SVG}</span>
+                <span>Ctrl K</span>
+              </kbd>
+            </button>
 
-          <button
-            type="button"
-            className="topbar-search-btn"
-            onClick={openSpotlight}
-            title="Universal Search (Ctrl + K)"
-            aria-label="Universal Search"
-          >
-            {SEARCH_SVG}
-            <span className="search-btn-label">Search…</span>
-            <kbd className="search-btn-kbd">⌘K</kbd>
-          </button>
+            <div className="nav-spacer" />
 
-          <div className="nav-spacer" />
+            {externals.map(e => (
+              <a
+                key={e.label}
+                href={e.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nav-item external"
+              >
+                {e.icon}
+                {e.label}
+                {EXT_SVG}
+              </a>
+            ))}
+          </nav>
 
-          {externals.map(e => (
-            <a
-              key={e.label}
-              href={e.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="nav-item external"
+          {/* Mobile Right Controls */}
+          <div className="mobile-controls">
+            <button
+              type="button"
+              className="topbar-search-mobile-btn"
+              onClick={openSpotlight}
+              aria-label="Search"
+              title="Universal Search"
             >
-              {e.icon}
-              {e.label}
-              {EXT_SVG}
-            </a>
-          ))}
-        </nav>
-      </div>
-    </header>
+              {SEARCH_SVG}
+            </button>
+            <button
+              type="button"
+              className="mobile-menu-toggle"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? CLOSE_SVG : MENU_SVG}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Drawer Overlay */}
+      {mobileMenuOpen && (
+        <div className="mobile-nav-backdrop" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-nav-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-nav-head">
+              <div className="mobile-nav-brand">
+                <Image src="/assets/logo-support.png" alt="" width={20} height={20} />
+                <span>Madium Support Menu</span>
+              </div>
+              <button
+                type="button"
+                className="mobile-nav-close"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close"
+              >
+                {CLOSE_SVG}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="mobile-search-trigger"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                openSpotlight();
+              }}
+            >
+              {SEARCH_SVG}
+              <span>Quick Search &amp; Switcher</span>
+              <kbd className="search-btn-kbd">
+                <span className="win-icon">{WIN11_SVG}</span>
+                <span>Ctrl K</span>
+              </kbd>
+            </button>
+
+            <div className="mobile-nav-section-title">Navigation</div>
+            <div className="mobile-nav-links">
+              {pages.map((p) => {
+                const isActive = activePage === p.key;
+                return (
+                  <Link
+                    key={p.key}
+                    href={p.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`mobile-nav-item${isActive ? ' active' : ''}`}
+                  >
+                    <span className="mobile-nav-icon">{NAV_ICONS[p.key]}</span>
+                    <span className="mobile-nav-label">{p.label}</span>
+                    {isActive && <span className="mobile-nav-dot" />}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="mobile-nav-section-title">External Links</div>
+            <div className="mobile-nav-links">
+              {externals.map((e) => (
+                <a
+                  key={e.label}
+                  href={e.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="mobile-nav-item external"
+                >
+                  <span className="mobile-nav-icon">{e.icon}</span>
+                  <span className="mobile-nav-label">{e.label}</span>
+                  {EXT_SVG}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
