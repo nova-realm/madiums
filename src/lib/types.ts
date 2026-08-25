@@ -12,6 +12,7 @@ export interface QR {
   id: string;
   title: string;
   text: string;
+  attachments?: string[];
   enabled?: boolean;
 }
 

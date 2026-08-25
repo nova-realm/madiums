@@ -556,6 +556,43 @@ mark.hl {
   padding: 0 4px;
 }
 
+/* Discord Media / Attachments */
+.dc-media-wrap {
+  margin: 10px 0;
+  display: block;
+}
+
+.dc-img {
+  max-width: 100%;
+  max-height: 420px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--bg-overlay);
+  display: block;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.dc-img:hover {
+  border-color: var(--border-focus);
+}
+
+.dc-video {
+  max-width: 100%;
+  max-height: 420px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: #000;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.dc-media-link {
+  font-size: 11px;
+  margin-top: 4px;
+}
+
 /* ─────────────────────────────────────────────
    Status page
 ───────────────────────────────────────────── */

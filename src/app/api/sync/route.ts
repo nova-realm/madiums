@@ -1,21 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getQRs, syncQRs, QRMutationInput } from '@/lib/qrs-storage';
+import { getQRs, syncQRs, extractAttachmentUrls, QRMutationInput } from '@/lib/qrs-storage';
 
 export const dynamic = 'force-dynamic';
 
-// ── GET /api/sync: Return current list ─────────────────────────────────────
+async function parseBody(req: NextRequest): Promise<any> {
+  const contentType = req.headers.get('content-type') || '';
+
+  if (
+    contentType.includes('multipart/form-data') ||
+    contentType.includes('application/x-www-form-urlencoded')
+  ) {
+    try {
+      const formData = await req.formData();
+      const rawPayload = formData.get('payload') || formData.get('qrs') || formData.get('data');
+      if (typeof rawPayload === 'string') {
+        return JSON.parse(rawPayload);
+      }
+    } catch (err) {
+      console.warn('Failed to parse form-data in /api/sync:', err);
+    }
+  }
+
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
+
+// ── GET /api/sync: Return current list with attachments ────────────────────
 export async function GET() {
   try {
     const qrs = await getQRs();
     const all = qrs
       .filter((q) => q.enabled !== false)
-      .map((q) => ({
-        key: q.id,
-        title: q.title,
-        desc: q.text,
-        text: q.text,
-        enabled: q.enabled ?? true,
-      }));
+      .map((q) => {
+        const atts = q.attachments || extractAttachmentUrls({ text: q.text });
+        const firstAtt = atts[0] || null;
+        return {
+          key: q.id,
+          id: q.id,
+          title: q.title,
+          desc: q.text,
+          text: q.text,
+          attachments: atts,
+          attachment: firstAtt,
+          image: firstAtt,
+          images: atts,
+          enabled: q.enabled ?? true,
+        };
+      });
 
     return NextResponse.json(all, {
       headers: { 'Cache-Control': 'no-store' },
@@ -28,14 +62,12 @@ export async function GET() {
   }
 }
 
-// ── POST /api/sync: Batch sync full list from bot ──────────────────────────
+// ── POST /api/sync: Batch sync full list from bot with attachments ─────────
 export async function POST(req: NextRequest) {
   try {
-    let body: any = null;
+    const body = await parseBody(req);
 
-    try {
-      body = await req.json();
-    } catch {
+    if (!body) {
       return NextResponse.json(
         {
           error:
@@ -61,7 +93,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Expected an array of quick replies [ { key, title, desc }, ... ] or { "qrs": [...] }',
+            'Expected an array of quick replies [ { key, title, desc, attachments }, ... ] or { "qrs": [...] }',
         },
         { status: 400 }
       );
