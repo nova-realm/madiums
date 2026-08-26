@@ -169,7 +169,18 @@ export default function GuideContent({ qrs }: Props) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function playEasterEggSound() {
+    try {
+      const audio = new Audio('/assets/voicy.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } catch {}
+  }
+
   async function handleCopy(key: string, text: string) {
+    if (key.toLowerCase().includes('nigga')) {
+      playEasterEggSound();
+    }
     const ok = await copyText(text);
     if (ok) {
       setCopiedKey(key);

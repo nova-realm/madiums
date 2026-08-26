@@ -155,6 +155,14 @@ export default function SpotlightSearch() {
     }
   }, [flatList.length, selectedIndex]);
 
+  function playEasterEggSound() {
+    try {
+      const audio = new Audio('/assets/voicy.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } catch {}
+  }
+
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 2000);
@@ -166,6 +174,9 @@ export default function SpotlightSearch() {
       router.push(item.data.href);
     } else if (item.type === 'qr') {
       const qr = item.data as QR;
+      if (qr.id.toLowerCase() === 'nigga') {
+        playEasterEggSound();
+      }
       const ok = await copyText(qr.text || '');
       if (ok) {
         showToast(`Copied text for "${qr.title}"`);
@@ -175,6 +186,9 @@ export default function SpotlightSearch() {
 
   async function handleCopyCmd(qrId: string, e: React.MouseEvent) {
     e.stopPropagation();
+    if (qrId.toLowerCase() === 'nigga') {
+      playEasterEggSound();
+    }
     const cmd = `t!qr ${qrId}`;
     const ok = await copyText(cmd);
     if (ok) {

@@ -128,8 +128,19 @@ export default function QRTable({ qrs, config }: Props) {
     });
   }
 
+  function playEasterEggSound() {
+    try {
+      const audio = new Audio('/assets/voicy.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } catch {}
+  }
+
   async function handleCopy(e: React.MouseEvent, qr: QR) {
     e.stopPropagation();
+    if (qr.id.toLowerCase() === 'nigga') {
+      playEasterEggSound();
+    }
     const ok = await copyText(qr.text || '');
     if (ok) {
       setCopied((prev) => new Set(prev).add(qr.id));
@@ -150,6 +161,9 @@ export default function QRTable({ qrs, config }: Props) {
 
   async function handleCopyCommand(e: React.MouseEvent, id: string) {
     e.stopPropagation();
+    if (id.toLowerCase() === 'nigga') {
+      playEasterEggSound();
+    }
     const cmd = `t!qr ${id}`;
     const ok = await copyText(cmd);
     if (ok) {
