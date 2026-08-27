@@ -4,19 +4,45 @@ import type { QR } from './types';
 import fallbackQRs from '@data/qrs.json';
 
 const LIVE_RAILWAY_API_URL = 'https://madiums-production.up.railway.app/api/all';
+const DISCORD_CDN_REGEX = /https?:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\/[^\s)\]>"']+/gi;
 
 function getStoragePaths(): string[] {
   const cwd = process.cwd();
   return [
     path.join(cwd, 'data', 'qrs.json'),
     path.join(cwd, 'public', 'data', 'qrs.json'),
-    path.join(cwd, '..', 'data', 'qrs.json'),
   ];
 }
 
 /** Get the primary path for qrs.json */
 function getPrimaryPath(): string {
   return path.join(process.cwd(), 'data', 'qrs.json');
+}
+
+/** Helper to ensure data/uploads directory exists and save uploaded buffer */
+function saveFileToUploads(fileName: string, buffer: Buffer): void {
+  const dataDir = path.join(process.cwd(), 'data', 'uploads');
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(path.join(dataDir, fileName), buffer);
+  } catch (err) {
+    console.error('Failed to save file to data/uploads:', err);
+  }
+}
+
+/** Helper to delete uploaded file from data/uploads */
+function deleteUploadedFile(fileName: string): void {
+  if (!fileName) return;
+  const dataPath = path.join(process.cwd(), 'data', 'uploads', fileName);
+  try {
+    if (fs.existsSync(dataPath)) {
+      fs.unlinkSync(dataPath);
+    }
+  } catch (err) {
+    console.error('Failed to delete file from data/uploads:', err);
+  }
 }
 
 export interface DiscordAttachmentInput {
@@ -105,6 +131,124 @@ export interface SyncResult {
   }>;
 }
 
+/**
+ * Downloads a Discord attachment URL and saves it to `/data/uploads/`.
+ * Returns the permanent local API URL `/api/uploads/<filename>`.
+ */
+export async function downloadAndSaveDiscordAttachment(
+  discordUrl: string,
+  qrId: string
+): Promise<string> {
+  if (
+    !discordUrl ||
+    discordUrl.startsWith('/api/uploads/') ||
+    discordUrl.startsWith('/uploads/') ||
+    !discordUrl.includes('discordapp.')
+  ) {
+    return discordUrl;
+  }
+
+  try {
+    const res = await fetch(discordUrl);
+    if (!res.ok) {
+      console.warn(`Failed to fetch Discord attachment from ${discordUrl}: ${res.status} ${res.statusText}`);
+      return discordUrl;
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Determine clean filename
+    const cleanUrl = discordUrl.split('?')[0];
+    const originalName = cleanUrl.split('/').pop() || 'attachment';
+    const ext = path.extname(originalName) || '.png';
+    const baseName = path.basename(originalName, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // Prefix with sanitized QR id for clear association
+    const safeQrId = (qrId || 'qr').toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `${safeQrId}-${baseName}${ext}`;
+
+    saveFileToUploads(fileName, buffer);
+
+    return `/api/uploads/${fileName}`;
+  } catch (err) {
+    console.error(`Error downloading Discord attachment ${discordUrl}:`, err);
+  }
+
+  return discordUrl;
+}
+
+/**
+ * Deletes all uploaded files belonging to a QR from `/data/uploads/`.
+ */
+export async function deleteQRFiles(qr: QR | { id: string; attachments?: string[]; text?: string }): Promise<void> {
+  if (!qr) return;
+
+  const fileNames = new Set<string>();
+
+  const checkAndAdd = (val: string) => {
+    if (val && typeof val === 'string') {
+      const match = val.match(/\/(?:api\/)?uploads\/([^"'\s)>]+)/);
+      if (match && match[1]) {
+        fileNames.add(match[1]);
+      }
+    }
+  };
+
+  (qr.attachments || []).forEach(checkAndAdd);
+  if (qr.text) {
+    const matches = qr.text.match(/\/(?:api\/)?uploads\/([^"'\s)>]+)/g) || [];
+    matches.forEach(checkAndAdd);
+  }
+
+  for (const fileName of fileNames) {
+    deleteUploadedFile(fileName);
+  }
+}
+
+/**
+ * Intercepts, downloads, and re-hosts all Discord attachments in a QR payload,
+ * replacing expiring Discord CDN URLs with permanent `/api/uploads/...` URLs.
+ */
+export async function processQRDiscordAttachments(
+  qrId: string,
+  rawText: string,
+  attachmentUrls: string[]
+): Promise<{ text: string; attachments: string[] }> {
+  let updatedText = rawText || '';
+  const finalAttachments: string[] = [];
+
+  // 1. Process explicit attachment URLs
+  for (const url of attachmentUrls) {
+    if (url.includes('discordapp.')) {
+      const localUrl = await downloadAndSaveDiscordAttachment(url, qrId);
+      finalAttachments.push(localUrl);
+      if (localUrl !== url) {
+        updatedText = updatedText.replaceAll(url, localUrl);
+      }
+    } else {
+      finalAttachments.push(url);
+    }
+  }
+
+  // 2. Also search for any remaining Discord URLs embedded inside text/markdown
+  const embeddedMatches = updatedText.match(DISCORD_CDN_REGEX) || [];
+  for (const url of embeddedMatches) {
+    const localUrl = await downloadAndSaveDiscordAttachment(url, qrId);
+    if (localUrl !== url) {
+      updatedText = updatedText.replaceAll(url, localUrl);
+      if (!finalAttachments.includes(localUrl)) {
+        finalAttachments.push(localUrl);
+      }
+    }
+  }
+
+  return {
+    text: updatedText,
+    attachments: Array.from(new Set(finalAttachments)),
+  };
+}
+
 /** Helper: Extract all Discord / media attachment URLs from input payload */
 export function extractAttachmentUrls(input: any): string[] {
   if (!input) return [];
@@ -114,13 +258,16 @@ export function extractAttachmentUrls(input: any): string[] {
     if (!val) return;
     if (typeof val === 'string') {
       const trimmed = val.trim();
-      if (/^https?:\/\//i.test(trimmed)) {
+      if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('/api/uploads/') || trimmed.startsWith('/uploads/')) {
         urls.add(trimmed);
       }
     } else if (typeof val === 'object') {
       const candidate = val.url || val.proxy_url || val.href || val.src || val.link;
-      if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate.trim())) {
-        urls.add(candidate.trim());
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('/api/uploads/') || trimmed.startsWith('/uploads/')) {
+          urls.add(trimmed);
+        }
       }
     }
   };
@@ -150,7 +297,7 @@ export function extractAttachmentUrls(input: any): string[] {
     }
   }
 
-  // Also extract Discord CDN attachment URLs found directly inside text or markdown
+  // Also extract Discord CDN attachment URLs or /api/uploads/ found directly inside text or markdown
   const textContent =
     input.text ??
     input.desc ??
@@ -160,10 +307,15 @@ export function extractAttachmentUrls(input: any): string[] {
     '';
 
   if (typeof textContent === 'string' && textContent) {
-    const discordCdnRegex = /https?:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\/[^\s)\]>"']+/gi;
-    const matches = textContent.match(discordCdnRegex);
+    const matches = textContent.match(DISCORD_CDN_REGEX);
     if (matches) {
       for (const m of matches) {
+        urls.add(m);
+      }
+    }
+    const uploadMatches = textContent.match(/\/(?:api\/)?uploads\/[^\s)\]>"']+/g);
+    if (uploadMatches) {
+      for (const m of uploadMatches) {
         urls.add(m);
       }
     }
@@ -260,16 +412,17 @@ export async function saveQRs(qrs: QR[]): Promise<void> {
   for (const filePath of paths) {
     try {
       const dir = path.dirname(filePath);
-      if (fs.existsSync(dir)) {
-        await fs.promises.writeFile(filePath, content, 'utf-8');
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
       }
+      await fs.promises.writeFile(filePath, content, 'utf-8');
     } catch (err) {
       console.error(`Failed to write qrs.json to ${filePath}:`, err);
     }
   }
 }
 
-/** Add a new QR or update an existing one with Discord attachment handling */
+/** Add a new QR or update an existing one with Discord attachment handling and automatic re-hosting */
 export async function addOrUpdateQR(
   inputKey: string,
   input: QRMutationInput
@@ -293,13 +446,17 @@ export async function addOrUpdateQR(
     '';
 
   const attachmentUrls = extractAttachmentUrls(input);
-  const finalText = buildMergedText(rawText, attachmentUrls);
   const newKeyVal = (input.newKey || input.new_key || '').trim();
+  const targetId = newKeyVal ? newKeyVal : (index >= 0 ? qrs[index].id : keyToFind);
+
+  // Automatically intercept and download any Discord attachments to data/uploads
+  const processed = await processQRDiscordAttachments(targetId, rawText, attachmentUrls);
+  const finalText = buildMergedText(processed.text, processed.attachments);
 
   if (index >= 0) {
     // Update existing
     const existing = qrs[index];
-    const updatedId = newKeyVal ? newKeyVal : existing.id;
+    const updatedId = targetId;
     const updatedTitle = input.title !== undefined ? input.title : existing.title;
     const updatedText =
       input.text !== undefined ||
@@ -314,7 +471,7 @@ export async function addOrUpdateQR(
       input.enabled !== undefined ? Boolean(input.enabled) : (existing.enabled ?? true);
 
     const mergedAttachments = Array.from(
-      new Set([...(existing.attachments || []), ...attachmentUrls, ...extractAttachmentUrls({ text: updatedText })])
+      new Set([...(existing.attachments || []), ...processed.attachments, ...extractAttachmentUrls({ text: updatedText })])
     );
 
     const updatedQR: QR = {
@@ -348,11 +505,11 @@ export async function addOrUpdateQR(
   } else {
     // Create new
     const finalAttachments = Array.from(
-      new Set([...attachmentUrls, ...extractAttachmentUrls({ text: finalText })])
+      new Set([...processed.attachments, ...extractAttachmentUrls({ text: finalText })])
     );
 
     const newQR: QR = {
-      id: newKeyVal ? newKeyVal : keyToFind,
+      id: targetId,
       title: input.title !== undefined ? input.title : keyToFind,
       text: finalText,
       attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
@@ -382,7 +539,7 @@ export async function addOrUpdateQR(
   }
 }
 
-/** Delete / remove a QR by its key */
+/** Delete / remove a QR by its key and clean up its stored files */
 export async function deleteQR(keyToDelete: string): Promise<QR | null> {
   const qrs = await getQRs();
   const normalised = keyToDelete.trim().toLowerCase();
@@ -394,10 +551,11 @@ export async function deleteQR(keyToDelete: string): Promise<QR | null> {
 
   const [removed] = qrs.splice(index, 1);
   await saveQRs(qrs);
+  await deleteQRFiles(removed);
   return removed;
 }
 
-/** Batch sync full list of QRs with Discord attachment support */
+/** Batch sync full list of QRs with Discord attachment interception and file cleanup */
 export async function syncQRs(
   incomingList: QRMutationInput[],
   options: SyncOptions = {}
@@ -423,7 +581,7 @@ export async function syncQRs(
     if (!rawKey || rawKey.toLowerCase() === 'all') continue;
 
     const normKey = rawKey.toLowerCase();
-    if (processedKeys.has(normKey)) continue; // prevent duplicates in payload
+    if (processedKeys.has(normKey)) continue;
     processedKeys.add(normKey);
 
     const title = item.title !== undefined ? item.title : rawKey;
@@ -436,13 +594,16 @@ export async function syncQRs(
       '';
 
     const attachmentUrls = extractAttachmentUrls(item);
-    const text = buildMergedText(rawText, attachmentUrls);
+    
+    // Automatically intercept Discord attachments
+    const processed = await processQRDiscordAttachments(rawKey, rawText, attachmentUrls);
+    const text = buildMergedText(processed.text, processed.attachments);
     const enabled = item.enabled !== undefined ? Boolean(item.enabled) : true;
 
     const existing = existingMap.get(normKey);
 
     const mergedAttachments = Array.from(
-      new Set([...(existing?.attachments || []), ...attachmentUrls, ...extractAttachmentUrls({ text })])
+      new Set([...(existing?.attachments || []), ...processed.attachments, ...extractAttachmentUrls({ text })])
     );
 
     if (existing) {
@@ -481,11 +642,12 @@ export async function syncQRs(
     }
   }
 
-  // Check for removals
+  // Check for removals and delete their files
   for (const [normKey, existing] of existingMap.entries()) {
     if (!processedKeys.has(normKey)) {
       if (removeMissing) {
         removed.push(existing.id);
+        await deleteQRFiles(existing);
       } else {
         finalList.push(existing);
         unchanged.push(existing.id);

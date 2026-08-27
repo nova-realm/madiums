@@ -147,7 +147,9 @@ function isImageUrl(url: string): boolean {
   return (
     /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(url) ||
     url.includes('cdn.discordapp.com/attachments/') ||
-    url.includes('media.discordapp.net/attachments/')
+    url.includes('media.discordapp.net/attachments/') ||
+    /\/api\/uploads\/.*\.(png|jpe?g|gif|webp|svg)/i.test(url) ||
+    /\/uploads\/.*\.(png|jpe?g|gif|webp|svg)/i.test(url)
   );
 }
 
@@ -167,21 +169,24 @@ function inline(raw: string): string {
   let s = raw;
 
   // 1. Markdown images: ![alt](url)
-  s = s.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi, (_, alt, url) => {
+  s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/gi, (_, alt, rawUrl) => {
+    const url = rawUrl.trim();
     return pushToken(
       `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="${escHtml(alt || 'Attachment')}" class="dc-img" loading="lazy" /></a></div>`
     );
   });
 
   // 2. Image link shortcuts: [image](url), [img](url), [screenshot](url), [attachment](url)
-  s = s.replace(/\[(image|img|screenshot|attachment|photo)\]\((https?:\/\/[^)]+)\)/gi, (_, label, url) => {
+  s = s.replace(/\[(image|img|screenshot|attachment|photo)\]\(([^)]+)\)/gi, (_, label, rawUrl) => {
+    const url = rawUrl.trim();
     return pushToken(
       `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="${escHtml(label)}" class="dc-img" loading="lazy" /></a></div>`
     );
   });
 
   // 3. Video link shortcuts: [video](url), [vid](url), [clip](url)
-  s = s.replace(/\[(video|vid|clip)\]\((https?:\/\/[^)]+)\)/gi, (_, _label, url) => {
+  s = s.replace(/\[(video|vid|clip)\]\(([^)]+)\)/gi, (_, _label, rawUrl) => {
+    const url = rawUrl.trim();
     return pushToken(
       `<div class="dc-media-wrap"><video src="${escHtml(url)}" controls class="dc-video" preload="metadata"></video></div>`
     );
@@ -217,7 +222,7 @@ function inline(raw: string): string {
   });
 
   // 5. Discord angle bracket links: <https://...>
-  s = s.replace(/<(https?:\/\/[^\s>]+)>/g, (_, url) => {
+  s = s.replace(/<((?:https?:\/\/|\/api\/uploads\/|\/uploads\/)[^\s>]+)>/g, (_, url) => {
     const fileMeta = getFileMeta(url);
     if (fileMeta.isDownloadableFile) {
       return pushToken(renderFileCard(url, fileMeta));
@@ -228,7 +233,7 @@ function inline(raw: string): string {
   });
 
   // 6. Bare URLs (auto-linking with image, video, and file card detection)
-  s = s.replace(/(https?:\/\/[^\s<)\]>"']+)/g, (url) => {
+  s = s.replace(/(https?:\/\/[^\s<)\]>"']+|\/api\/uploads\/[^\s<)\]>"']+|\/uploads\/[^\s<)\]>"']+)/g, (url) => {
     const fileMeta = getFileMeta(url);
     if (fileMeta.isDownloadableFile) {
       return pushToken(renderFileCard(url, fileMeta));
