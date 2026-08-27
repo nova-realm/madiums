@@ -373,8 +373,10 @@ export default function QRTable({ qrs, config }: Props) {
                               .map((att, aIdx) => {
                                 const isImg =
                                   /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(att) ||
-                                  att.includes('cdn.discordapp.com/attachments/') ||
-                                  att.includes('media.discordapp.net/attachments/');
+                                  (
+                                    (att.includes('cdn.discordapp.com/attachments/') || att.includes('media.discordapp.net/attachments/')) &&
+                                    !/\.(txt|bat|cmd|ps1|sh|py|lua|vbs|exe|msi|dll|zip|rar|7z|tar|gz|log|json|xml|cfg|ini|pdf)(\?.*)?$/i.test(att)
+                                  );
                                 const isVid = /\.(mp4|webm|mov)(\?.*)?$/i.test(att);
 
                                 if (isImg) {

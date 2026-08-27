@@ -19,6 +19,11 @@ const MIME_TYPES: Record<string, string> = {
   '.pdf': 'application/pdf',
   '.zip': 'application/zip',
   '.bat': 'text/plain; charset=utf-8',
+  '.cmd': 'text/plain; charset=utf-8',
+  '.ps1': 'text/plain; charset=utf-8',
+  '.sh': 'text/plain; charset=utf-8',
+  '.py': 'text/plain; charset=utf-8',
+  '.log': 'text/plain; charset=utf-8',
 };
 
 export async function GET(
@@ -53,6 +58,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(file)}"`,
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     });

@@ -216,6 +216,25 @@ export async function deleteQRFiles(qr: QR | { id: string; attachments?: string[
 }
 
 /**
+ * Normalizes an attachment list:
+ * If any local /api/uploads/ URL exists, purges replaced or expired discord CDN URLs
+ * so duplicate and old links never linger.
+ */
+export function purgeDiscordCdnUrlsIfRehosted(attachments: string[]): string[] {
+  if (!attachments || attachments.length === 0) return [];
+  
+  const unique = Array.from(new Set(attachments.map((a) => (typeof a === 'string' ? a.trim() : '')))).filter(Boolean);
+  
+  // If there are rehosted URLs, purge any cdn.discordapp.com / media.discordapp.net URLs
+  const hasRehosted = unique.some((u) => u.includes('/api/uploads/') || u.includes('/uploads/'));
+  if (hasRehosted) {
+    return unique.filter((u) => !u.includes('discordapp.com') && !u.includes('discordapp.net'));
+  }
+  
+  return unique;
+}
+
+/**
  * Strips all attachment URLs (Discord CDN URLs and /api/uploads/ URLs) from the text,
  * leaving only clean human text so the bot does not duplicate images in Discord.
  */
@@ -285,12 +304,15 @@ export async function processQRDiscordAttachments(
     }
   }
 
-  // 3. Strip all attachment URLs from text so the bot doesn't send duplicate images
-  const cleanText = stripAttachmentUrlsFromText(rawText, finalAttachments);
+  // 3. Purge raw Discord URLs if local URLs exist
+  const purgedAttachments = purgeDiscordCdnUrlsIfRehosted(finalAttachments);
+
+  // 4. Strip all attachment URLs from text so the bot doesn't send duplicate images
+  const cleanText = stripAttachmentUrlsFromText(rawText, [...finalAttachments, ...attachmentUrls]);
 
   return {
     text: cleanText,
-    attachments: Array.from(new Set(finalAttachments)),
+    attachments: purgedAttachments,
   };
 }
 
@@ -382,7 +404,7 @@ export function extractAttachmentUrls(input: any): string[] {
     }
   }
 
-  return Array.from(urls);
+  return purgeDiscordCdnUrlsIfRehosted(Array.from(urls));
 }
 
 /** Read all QRs by GET fetching from live Railway API, with fallback to local disk */
@@ -400,7 +422,7 @@ export async function getQRs(): Promise<QR[]> {
       if (Array.isArray(data) && data.length > 0) {
         const liveQRs: QR[] = data.map((d: any) => {
           const rawText = d.desc || d.text || '';
-          const attachments = extractAttachmentUrls(d);
+          const attachments = purgeDiscordCdnUrlsIfRehosted(extractAttachmentUrls(d));
           const cleanText = stripAttachmentUrlsFromText(rawText, attachments);
           return {
             id: d.key || d.id,
@@ -430,7 +452,7 @@ export async function getQRs(): Promise<QR[]> {
       if (Array.isArray(parsed)) {
         return parsed.map((d: any) => {
           const rawText = d.desc || d.text || '';
-          const attachments = extractAttachmentUrls(d);
+          const attachments = purgeDiscordCdnUrlsIfRehosted(extractAttachmentUrls(d));
           const cleanText = stripAttachmentUrlsFromText(rawText, attachments);
           return {
             id: d.key || d.id,
@@ -448,7 +470,7 @@ export async function getQRs(): Promise<QR[]> {
 
   return (fallbackQRs as any[]).map((d: any) => {
     const rawText = d.desc || d.text || '';
-    const attachments = extractAttachmentUrls(d);
+    const attachments = purgeDiscordCdnUrlsIfRehosted(extractAttachmentUrls(d));
     const cleanText = stripAttachmentUrlsFromText(rawText, attachments);
     return {
       id: d.key || d.id,
@@ -525,9 +547,14 @@ export async function addOrUpdateQR(
     const updatedEnabled =
       input.enabled !== undefined ? Boolean(input.enabled) : (existing.enabled ?? true);
 
-    const mergedAttachments = Array.from(
-      new Set([...(existing.attachments || []), ...processed.attachments, ...extractAttachmentUrls({ text: updatedText })])
+    const filteredExisting = (existing.attachments || []).filter(
+      (u) => !u.includes('discordapp.com') && !u.includes('discordapp.net')
     );
+
+    const mergedAttachments = purgeDiscordCdnUrlsIfRehosted([
+      ...filteredExisting,
+      ...processed.attachments,
+    ]);
 
     const updatedQR: QR = {
       id: updatedId,
@@ -559,9 +586,7 @@ export async function addOrUpdateQR(
     };
   } else {
     // Create new
-    const finalAttachments = Array.from(
-      new Set([...processed.attachments, ...extractAttachmentUrls({ text: rawText })])
-    );
+    const finalAttachments = purgeDiscordCdnUrlsIfRehosted(processed.attachments);
 
     const newQR: QR = {
       id: targetId,
@@ -656,9 +681,14 @@ export async function syncQRs(
 
     const existing = existingMap.get(normKey);
 
-    const mergedAttachments = Array.from(
-      new Set([...(existing?.attachments || []), ...processed.attachments, ...extractAttachmentUrls({ text: rawText })])
+    const filteredExisting = (existing?.attachments || []).filter(
+      (u) => !u.includes('discordapp.com') && !u.includes('discordapp.net')
     );
+
+    const mergedAttachments = purgeDiscordCdnUrlsIfRehosted([
+      ...filteredExisting,
+      ...processed.attachments,
+    ]);
 
     const cleanText = stripAttachmentUrlsFromText(processed.text, mergedAttachments);
 
