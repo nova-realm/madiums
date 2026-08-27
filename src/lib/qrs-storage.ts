@@ -216,27 +216,53 @@ export async function deleteQRFiles(qr: QR | { id: string; attachments?: string[
 }
 
 /**
- * Clean up [image](...) / [img](...) / [attachment](...) markdown syntax
- * around local upload URLs so it spits clean direct URLs.
+ * Strips all attachment URLs (Discord CDN URLs and /api/uploads/ URLs) from the text,
+ * leaving only clean human text so the bot does not duplicate images in Discord.
  */
-function cleanMarkdownWrappers(text: string): string {
+export function stripAttachmentUrlsFromText(text: string, attachmentUrls: string[] = []): string {
   if (!text) return '';
-  return text
-    .replace(/\[(?:image|img|attachment|photo|screenshot|video|clip)\]\((https?:\/\/[^\s)]+\/api\/uploads\/[^\s)]+)\)/gi, '$1')
-    .replace(/\[(?:image|img|attachment|photo|screenshot|video|clip)\]\((\/api\/uploads\/[^\s)]+)\)/gi, `${BASE_DOMAIN_URL}$1`)
-    .replace(/(?<!https?:\/\/[^\s]+)\/api\/uploads\/([^\s)\]>"']+)/g, `${BASE_DOMAIN_URL}/api/uploads/$1`);
+  let cleaned = text;
+
+  // Strip markdown image wrappers like ![alt](url) or [image](url)
+  cleaned = cleaned.replace(/!\[[^\]]*\]\([^)]+\)/gi, '');
+  cleaned = cleaned.replace(/\[(?:image|img|attachment|photo|screenshot|video|clip)\]\([^)]+\)/gi, '');
+
+  // Strip explicit attachment URLs
+  for (const url of attachmentUrls) {
+    if (url) {
+      cleaned = cleaned.replaceAll(url, '');
+      const cleanPath = url.replace(/^https?:\/\/[^\/]+/, '');
+      if (cleanPath) {
+        cleaned = cleaned.replaceAll(cleanPath, '');
+      }
+    }
+  }
+
+  // Strip any Discord CDN URLs
+  cleaned = cleaned.replace(DISCORD_CDN_REGEX, '');
+
+  // Strip any local upload URLs
+  cleaned = cleaned.replace(/https?:\/\/[^\s)\]>"']+\/api\/uploads\/[^\s)\]>"']+/gi, '');
+  cleaned = cleaned.replace(/\/api\/uploads\/[^\s)\]>"']+/gi, '');
+
+  // Clean up extra blank lines / trailing whitespace
+  return cleaned
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line, i, arr) => line !== '' || (i > 0 && arr[i - 1] !== ''))
+    .join('\n')
+    .trim();
 }
 
 /**
  * Intercepts, downloads, and re-hosts all Discord attachments in a QR payload,
- * replacing expiring Discord CDN URLs with permanent full API URLs.
+ * strips attachment links from text, and returns clean text + attachment array.
  */
 export async function processQRDiscordAttachments(
   qrId: string,
   rawText: string,
   attachmentUrls: string[]
 ): Promise<{ text: string; attachments: string[] }> {
-  let updatedText = rawText || '';
   const finalAttachments: string[] = [];
 
   // 1. Process explicit attachment URLs
@@ -244,9 +270,6 @@ export async function processQRDiscordAttachments(
     if (url.includes('discordapp.')) {
       const localUrl = await downloadAndSaveDiscordAttachment(url, qrId);
       finalAttachments.push(localUrl);
-      if (localUrl !== url) {
-        updatedText = updatedText.replaceAll(url, localUrl);
-      }
     } else {
       const normalizedUrl = url.startsWith('/api/uploads/') ? `${BASE_DOMAIN_URL}${url}` : url;
       finalAttachments.push(normalizedUrl);
@@ -254,22 +277,19 @@ export async function processQRDiscordAttachments(
   }
 
   // 2. Also search for any remaining Discord URLs embedded inside text/markdown
-  const embeddedMatches = updatedText.match(DISCORD_CDN_REGEX) || [];
+  const embeddedMatches = (rawText || '').match(DISCORD_CDN_REGEX) || [];
   for (const url of embeddedMatches) {
     const localUrl = await downloadAndSaveDiscordAttachment(url, qrId);
-    if (localUrl !== url) {
-      updatedText = updatedText.replaceAll(url, localUrl);
-      if (!finalAttachments.includes(localUrl)) {
-        finalAttachments.push(localUrl);
-      }
+    if (!finalAttachments.includes(localUrl)) {
+      finalAttachments.push(localUrl);
     }
   }
 
-  // 3. Clean any [image](...) wrappers
-  updatedText = cleanMarkdownWrappers(updatedText);
+  // 3. Strip all attachment URLs from text so the bot doesn't send duplicate images
+  const cleanText = stripAttachmentUrlsFromText(rawText, finalAttachments);
 
   return {
-    text: updatedText,
+    text: cleanText,
     attachments: Array.from(new Set(finalAttachments)),
   };
 }
@@ -283,7 +303,6 @@ export function extractAttachmentUrls(input: any): string[] {
     if (!val) return;
     if (typeof val === 'string') {
       let trimmed = val.trim();
-      // Remove any markdown image wrapper like [image](url)
       const wrapperMatch = trimmed.match(/^\[(?:image|img|attachment|photo|screenshot|video|clip)\]\(([^)]+)\)$/i);
       if (wrapperMatch) {
         trimmed = wrapperMatch[1].trim();
@@ -366,18 +385,6 @@ export function extractAttachmentUrls(input: any): string[] {
   return Array.from(urls);
 }
 
-/** Helper: Merge base text with attachment URLs formatted cleanly without [image] wrappers */
-export function buildMergedText(baseText: string, attachments: string[]): string {
-  let merged = cleanMarkdownWrappers((baseText || '').trim());
-  for (const url of attachments) {
-    const cleanUrl = url.startsWith('/api/uploads/') ? `${BASE_DOMAIN_URL}${url}` : url;
-    if (!merged.includes(cleanUrl) && !merged.includes(url)) {
-      merged = merged ? `${merged}\n${cleanUrl}` : cleanUrl;
-    }
-  }
-  return cleanMarkdownWrappers(merged);
-}
-
 /** Read all QRs by GET fetching from live Railway API, with fallback to local disk */
 export async function getQRs(): Promise<QR[]> {
   try {
@@ -392,12 +399,13 @@ export async function getQRs(): Promise<QR[]> {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const liveQRs: QR[] = data.map((d: any) => {
-          const rawText = cleanMarkdownWrappers(d.desc || d.text || '');
+          const rawText = d.desc || d.text || '';
           const attachments = extractAttachmentUrls(d);
+          const cleanText = stripAttachmentUrlsFromText(rawText, attachments);
           return {
             id: d.key || d.id,
             title: d.title || d.key || d.id,
-            text: rawText,
+            text: cleanText,
             attachments: attachments.length > 0 ? attachments : undefined,
             enabled: d.enabled !== false,
           };
@@ -420,26 +428,36 @@ export async function getQRs(): Promise<QR[]> {
       const raw = await fs.promises.readFile(primary, 'utf-8');
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.map((d: any) => ({
-          id: d.key || d.id,
-          title: d.title || d.key || d.id,
-          text: cleanMarkdownWrappers(d.desc || d.text || ''),
-          attachments: extractAttachmentUrls(d),
-          enabled: d.enabled !== false,
-        }));
+        return parsed.map((d: any) => {
+          const rawText = d.desc || d.text || '';
+          const attachments = extractAttachmentUrls(d);
+          const cleanText = stripAttachmentUrlsFromText(rawText, attachments);
+          return {
+            id: d.key || d.id,
+            title: d.title || d.key || d.id,
+            text: cleanText,
+            attachments: attachments.length > 0 ? attachments : undefined,
+            enabled: d.enabled !== false,
+          };
+        });
       }
     }
   } catch (err) {
     console.error('Error reading qrs.json from disk:', err);
   }
 
-  return (fallbackQRs as any[]).map((d: any) => ({
-    id: d.key || d.id,
-    title: d.title || d.key || d.id,
-    text: cleanMarkdownWrappers(d.desc || d.text || ''),
-    attachments: extractAttachmentUrls(d),
-    enabled: d.enabled !== false,
-  }));
+  return (fallbackQRs as any[]).map((d: any) => {
+    const rawText = d.desc || d.text || '';
+    const attachments = extractAttachmentUrls(d);
+    const cleanText = stripAttachmentUrlsFromText(rawText, attachments);
+    return {
+      id: d.key || d.id,
+      title: d.title || d.key || d.id,
+      text: cleanText,
+      attachments: attachments.length > 0 ? attachments : undefined,
+      enabled: d.enabled !== false,
+    };
+  });
 }
 
 /** Save QRs array to all relevant data directories */
@@ -489,7 +507,6 @@ export async function addOrUpdateQR(
 
   // Automatically intercept and download any Discord attachments to data/uploads
   const processed = await processQRDiscordAttachments(targetId, rawText, attachmentUrls);
-  const finalText = buildMergedText(processed.text, processed.attachments);
 
   if (index >= 0) {
     // Update existing
@@ -503,7 +520,7 @@ export async function addOrUpdateQR(
       input.content !== undefined ||
       input.body !== undefined ||
       attachmentUrls.length > 0
-        ? finalText
+        ? processed.text
         : existing.text;
     const updatedEnabled =
       input.enabled !== undefined ? Boolean(input.enabled) : (existing.enabled ?? true);
@@ -515,7 +532,7 @@ export async function addOrUpdateQR(
     const updatedQR: QR = {
       id: updatedId,
       title: updatedTitle,
-      text: cleanMarkdownWrappers(updatedText),
+      text: stripAttachmentUrlsFromText(updatedText, mergedAttachments),
       attachments: mergedAttachments.length > 0 ? mergedAttachments : undefined,
       enabled: updatedEnabled,
     };
@@ -543,13 +560,13 @@ export async function addOrUpdateQR(
   } else {
     // Create new
     const finalAttachments = Array.from(
-      new Set([...processed.attachments, ...extractAttachmentUrls({ text: finalText })])
+      new Set([...processed.attachments, ...extractAttachmentUrls({ text: rawText })])
     );
 
     const newQR: QR = {
       id: targetId,
       title: input.title !== undefined ? input.title : keyToFind,
-      text: cleanMarkdownWrappers(finalText),
+      text: stripAttachmentUrlsFromText(processed.text, finalAttachments),
       attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
       enabled: input.enabled !== undefined ? Boolean(input.enabled) : true,
     };
@@ -635,29 +652,27 @@ export async function syncQRs(
     
     // Automatically intercept Discord attachments
     const processed = await processQRDiscordAttachments(rawKey, rawText, attachmentUrls);
-    const text = buildMergedText(processed.text, processed.attachments);
     const enabled = item.enabled !== undefined ? Boolean(item.enabled) : true;
 
     const existing = existingMap.get(normKey);
 
     const mergedAttachments = Array.from(
-      new Set([...(existing?.attachments || []), ...processed.attachments, ...extractAttachmentUrls({ text })])
+      new Set([...(existing?.attachments || []), ...processed.attachments, ...extractAttachmentUrls({ text: rawText })])
     );
 
-    if (existing) {
-      const cleanExistingText = cleanMarkdownWrappers(existing.text);
-      const cleanNewText = cleanMarkdownWrappers(text);
+    const cleanText = stripAttachmentUrlsFromText(processed.text, mergedAttachments);
 
+    if (existing) {
       const hasChanged =
         existing.title !== title ||
-        cleanExistingText !== cleanNewText ||
+        existing.text !== cleanText ||
         (existing.enabled ?? true) !== enabled ||
         existing.id !== rawKey;
 
       const updatedItem: QR = {
         id: rawKey,
         title,
-        text: cleanNewText,
+        text: cleanText,
         attachments: mergedAttachments.length > 0 ? mergedAttachments : undefined,
         enabled,
       };
@@ -674,7 +689,7 @@ export async function syncQRs(
       const newItem: QR = {
         id: rawKey,
         title,
-        text: cleanMarkdownWrappers(text),
+        text: cleanText,
         attachments: mergedAttachments.length > 0 ? mergedAttachments : undefined,
         enabled,
       };
