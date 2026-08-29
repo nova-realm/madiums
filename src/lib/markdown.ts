@@ -44,6 +44,27 @@ const FILE_EXT_MAP: Record<
   pdf: { label: 'PDF Document', category: 'doc' },
 };
 
+export function isVideoUrl(url: string): boolean {
+  if (!url) return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return /\.(mp4|webm|mov|m4v|ogg)$/i.test(clean);
+}
+
+export function isImageUrl(url: string): boolean {
+  if (!url) return false;
+  if (isVideoUrl(url)) return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return (
+    /\.(png|jpe?g|gif|webp|svg|ico|bmp)$/i.test(clean) ||
+    /\/api\/uploads\/.*\.(png|jpe?g|gif|webp|svg|ico|bmp)/i.test(clean) ||
+    /\/uploads\/.*\.(png|jpe?g|gif|webp|svg|ico|bmp)/i.test(clean) ||
+    (
+      (url.includes('cdn.discordapp.com/attachments/') || url.includes('media.discordapp.net/attachments/')) &&
+      !/\.(mp4|webm|mov|m4v|ogg|txt|bat|cmd|ps1|sh|py|lua|vbs|exe|msi|dll|zip|rar|7z|tar|gz|log|json|xml|cfg|ini|pdf)$/i.test(clean)
+    )
+  );
+}
+
 export function getFileMeta(rawUrl: string, fallbackName?: string): FileMeta {
   try {
     const cleanUrl = rawUrl.split('?')[0].split('#')[0];
@@ -82,6 +103,8 @@ export function getFileMeta(rawUrl: string, fallbackName?: string): FileMeta {
           'mp4',
           'webm',
           'mov',
+          'm4v',
+          'ogg',
         ].includes(ext)
       ) {
         return {
@@ -143,20 +166,6 @@ export function renderFileCard(url: string, fileMeta: FileMeta): string {
   </div>`;
 }
 
-function isImageUrl(url: string): boolean {
-  return (
-    /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(url) ||
-    url.includes('cdn.discordapp.com/attachments/') ||
-    url.includes('media.discordapp.net/attachments/') ||
-    /\/api\/uploads\/.*\.(png|jpe?g|gif|webp|svg)/i.test(url) ||
-    /\/uploads\/.*\.(png|jpe?g|gif|webp|svg)/i.test(url)
-  );
-}
-
-function isVideoUrl(url: string): boolean {
-  return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
-}
-
 /** Tokenizer to safely replace markdown without regex collisions on generated HTML */
 function inline(raw: string): string {
   const tokens: string[] = [];
@@ -180,40 +189,60 @@ function inline(raw: string): string {
   // 1. Markdown images: ![alt](url)
   s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/gi, (_, alt, rawUrl) => {
     const url = rawUrl.trim();
+    if (isVideoUrl(url)) {
+      const fileName = url.split('/').pop()?.split('?')[0] || 'Open Video';
+      return pushToken(
+        `<div class="dc-media-wrap dc-video-wrap"><video src="${escHtml(url)}" controls playsinline preload="metadata" class="dc-video"></video><div class="dc-media-link"><a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(alt || fileName)}</a></div></div>`
+      );
+    }
+    const fileMeta = getFileMeta(url, alt);
+    if (fileMeta.isDownloadableFile) {
+      return pushToken(renderFileCard(url, fileMeta));
+    }
     return pushToken(
       `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="${escHtml(alt || 'Attachment')}" class="dc-img" loading="lazy" /></a></div>`
     );
   });
 
-  // 2. Image link shortcuts: [image](url), [img](url), [screenshot](url), [attachment](url)
-  s = s.replace(/\[(image|img|screenshot|attachment|photo)\]\(([^)]+)\)/gi, (_, label, rawUrl) => {
+  // 2. Media shortcuts: [image](url), [attachment](url), [video](url), etc.
+  s = s.replace(/\[(image|img|screenshot|attachment|photo|video|vid|clip)\]\(([^)]+)\)/gi, (_, label, rawUrl) => {
     const url = rawUrl.trim();
+    const lowerLabel = label.toLowerCase();
+    
+    if (isVideoUrl(url) || ['video', 'vid', 'clip'].includes(lowerLabel)) {
+      const fileName = url.split('/').pop()?.split('?')[0] || 'Open Video';
+      return pushToken(
+        `<div class="dc-media-wrap dc-video-wrap"><video src="${escHtml(url)}" controls playsinline preload="metadata" class="dc-video"></video><div class="dc-media-link"><a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(fileName)}</a></div></div>`
+      );
+    }
+
+    const fileMeta = getFileMeta(url, label);
+    if (fileMeta.isDownloadableFile) {
+      return pushToken(renderFileCard(url, fileMeta));
+    }
+
     return pushToken(
       `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="${escHtml(label)}" class="dc-img" loading="lazy" /></a></div>`
     );
   });
 
-  // 3. Video link shortcuts: [video](url), [vid](url), [clip](url)
-  s = s.replace(/\[(video|vid|clip)\]\(([^)]+)\)/gi, (_, _label, rawUrl) => {
-    const url = rawUrl.trim();
-    return pushToken(
-      `<div class="dc-media-wrap"><video src="${escHtml(url)}" controls class="dc-video" preload="metadata"></video></div>`
-    );
-  });
-
-  // 4. Standard markdown links: [text](url) (supports absolute URLs and relative paths like /guide)
+  // 3. Standard markdown links: [text](url)
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, rawUrl) => {
     const url = rawUrl.trim();
     const isExternal = url.startsWith('http://') || url.startsWith('https://');
 
+    if (isVideoUrl(url)) {
+      return pushToken(
+        `<div class="dc-media-wrap dc-video-wrap"><video src="${escHtml(url)}" controls playsinline preload="metadata" class="dc-video"></video><div class="dc-media-link"><a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(label)}</a></div></div>`
+      );
+    }
+
     if (
       isImageUrl(url) &&
-      (label.toLowerCase() === 'image' ||
-        label.toLowerCase() === 'img' ||
-        label.toLowerCase() === 'screenshot')
+      ['image', 'img', 'screenshot', 'attachment', 'photo', 'picture'].includes(label.toLowerCase())
     ) {
       return pushToken(
-        `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="image" class="dc-img" loading="lazy" /></a></div>`
+        `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="${escHtml(label)}" class="dc-img" loading="lazy" /></a></div>`
       );
     }
 
@@ -230,19 +259,13 @@ function inline(raw: string): string {
     );
   });
 
-  // 5. Discord angle bracket links: <https://...>
+  // 4. Discord angle bracket links: <https://...>
   s = s.replace(/<((?:https?:\/\/|\/api\/uploads\/|\/uploads\/)[^\s>]+)>/g, (_, url) => {
-    const fileMeta = getFileMeta(url);
-    if (fileMeta.isDownloadableFile) {
-      return pushToken(renderFileCard(url, fileMeta));
+    if (isVideoUrl(url)) {
+      return pushToken(
+        `<div class="dc-media-wrap dc-video-wrap"><video src="${escHtml(url)}" controls playsinline preload="metadata" class="dc-video"></video><div class="dc-media-link"><a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a></div></div>`
+      );
     }
-    return pushToken(
-      `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`
-    );
-  });
-
-  // 6. Bare URLs (auto-linking with image, video, and file card detection)
-  s = s.replace(/(https?:\/\/[^\s<)\]>"']+|\/api\/uploads\/[^\s<)\]>"']+|\/uploads\/[^\s<)\]>"']+)/g, (url) => {
     const fileMeta = getFileMeta(url);
     if (fileMeta.isDownloadableFile) {
       return pushToken(renderFileCard(url, fileMeta));
@@ -252,9 +275,26 @@ function inline(raw: string): string {
         `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="Attachment" class="dc-img" loading="lazy" /></a></div>`
       );
     }
+    return pushToken(
+      `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a>`
+    );
+  });
+
+  // 5. Bare URLs (auto-linking with video, image, and file card detection)
+  s = s.replace(/(https?:\/\/[^\s<)\]>"']+|\/api\/uploads\/[^\s<)\]>"']+|\/uploads\/[^\s<)\]>"']+)/g, (url) => {
     if (isVideoUrl(url)) {
+      const fileName = url.split('/').pop()?.split('?')[0] || url;
       return pushToken(
-        `<div class="dc-media-wrap"><video src="${escHtml(url)}" controls class="dc-video" preload="metadata"></video><div class="dc-media-link"><a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(url)}</a></div></div>`
+        `<div class="dc-media-wrap dc-video-wrap"><video src="${escHtml(url)}" controls playsinline preload="metadata" class="dc-video"></video><div class="dc-media-link"><a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(fileName)}</a></div></div>`
+      );
+    }
+    const fileMeta = getFileMeta(url);
+    if (fileMeta.isDownloadableFile) {
+      return pushToken(renderFileCard(url, fileMeta));
+    }
+    if (isImageUrl(url)) {
+      return pushToken(
+        `<div class="dc-media-wrap"><a href="${escHtml(url)}" target="_blank" rel="noopener"><img src="${escHtml(url)}" alt="Attachment" class="dc-img" loading="lazy" /></a></div>`
       );
     }
     return pushToken(
@@ -265,15 +305,15 @@ function inline(raw: string): string {
   // Safe HTML escaping for remaining non-token characters
   s = escHtml(s);
 
-  // 7. Inline code: `code`
+  // 6. Inline code: `code`
   s = s.replace(/`([^`]+)`/g, (_, c) => `<code class="dc-code">${c}</code>`);
 
-  // 8. Text formatting: **bold**, __underline__, ~~strike~~
+  // 7. Text formatting: **bold**, __underline__, ~~strike~~
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/__([^_]+)__/g, '<u>$1</u>');
   s = s.replace(/~~([^~]+)~~/g, '<s>$1</s>');
 
-  // 9. Restore placeholders with exact token HTML
+  // 8. Restore placeholders with exact token HTML
   tokens.forEach((tok, i) => {
     const placeholder = `\x00TOKEN_${i}\x00`;
     s = s.split(placeholder).join(tok);

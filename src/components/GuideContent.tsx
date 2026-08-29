@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Image from 'next/image';
 import type { QR } from '@/lib/types';
 import { copyText } from '@/lib/clipboard';
 
@@ -11,18 +10,6 @@ const EXT_SVG = (
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
     <polyline points="15 3 21 3 21 9" />
     <line x1="10" y1="14" x2="21" y2="3" />
-  </svg>
-);
-
-const COPY_SVG = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }} aria-hidden>
-    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-  </svg>
-);
-
-const CHECK_SVG = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }} aria-hidden>
-    <polyline points="20 6 9 17 4 12"/>
   </svg>
 );
 
@@ -159,23 +146,30 @@ function Step({ num, children }: { num: number; children: React.ReactNode }) {
 }
 
 function MediaAttachment({ url }: { url: string }) {
-  const lower = url.toLowerCase().split('?')[0];
-  const isVideo = lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov');
-  const isImage = lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.gif') || lower.endsWith('.webp');
-  const isBat = lower.endsWith('.bat');
-  const isExe = lower.endsWith('.exe') || lower.endsWith('.zip');
+  const cleanUrl = url.split('?')[0].split('#')[0].toLowerCase();
+  const isVideo = /\.(mp4|webm|mov|m4v|ogg)$/i.test(cleanUrl);
+  const isImage = !isVideo && /\.(png|jpe?g|gif|webp|svg|ico|bmp)$/i.test(cleanUrl);
+  const isBat = /\.(bat|cmd|ps1|sh)$/i.test(cleanUrl);
+  const isExe = /\.(exe|msi|zip|rar|7z|tar|gz)$/i.test(cleanUrl);
+
+  const fileName = decodeURIComponent(url.split('/').pop()?.split('?')[0] || 'file');
 
   if (isVideo) {
     return (
-      <div className="guide-media">
+      <div className="guide-media guide-video-wrap">
         <video
           src={url}
           controls
           playsInline
           className="guide-video"
-          preload="none"
+          preload="metadata"
         />
-        <span className="guide-media-caption">Video demonstration</span>
+        <div className="guide-media-caption">
+          <span>Video demonstration ({fileName})</span>
+          <a href={url} target="_blank" rel="noopener noreferrer" className="guide-ext-link">
+            {EXT_SVG} Open in new tab
+          </a>
+        </div>
       </div>
     );
   }
@@ -188,7 +182,6 @@ function MediaAttachment({ url }: { url: string }) {
     );
   }
   if (isBat || isExe) {
-    const fileName = url.split('/').pop()?.split('?')[0] ?? 'file';
     return (
       <a href={url} download className="guide-dl-btn" target="_blank" rel="noopener noreferrer">
         {DOWNLOAD_SVG}
@@ -196,7 +189,13 @@ function MediaAttachment({ url }: { url: string }) {
       </a>
     );
   }
-  return null;
+  return (
+    <div className="guide-media-link-wrap">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="guide-ext-link">
+        {EXT_SVG} View attachment ({fileName})
+      </a>
+    </div>
+  );
 }
 
 /* ── Individual guide topic renderers ── */
@@ -250,7 +249,7 @@ function TopicOverview() {
 function TopicRoles() {
   return (
     <div className="guide-topic-content">
-      <h1 className="guide-h1">{USERS_SVG} Roles & Hierarchy</h1>
+      <h1 className="guide-h1">{USERS_SVG} Roles &amp; Hierarchy</h1>
       <p className="guide-p">Understanding the team structure helps ensure the right people handle the right tickets. Always escalate when in doubt.</p>
       <div className="guide-role-cards">
         <div className="guide-role-card guide-role-lead">
@@ -292,27 +291,27 @@ function TopicRoles() {
 function TopicProtocols() {
   return (
     <div className="guide-topic-content">
-      <h1 className="guide-h1">{SHIELD_SVG} Rules, Bans & Security</h1>
+      <h1 className="guide-h1">{SHIELD_SVG} Rules, Bans &amp; Security</h1>
       <p className="guide-p">Every support interaction has standards. Deviating from these can result in demotion or blacklisting.</p>
       <h2 className="guide-section-title">Core Rules</h2>
       <ul className="guide-ul">
         <li>Never share internal tools, scripts, or staff-only channels with users.</li>
-        <li>Never generate or give a user a key — <strong>this is strictly prohibited.</strong></li>
+        <li>Never generate or give a user a key - <strong>this is strictly prohibited.</strong></li>
         <li>Do not assist users who have been blacklisted. Check before starting.</li>
-        <li>Do not assist bypasser users who skipped the work.ink link — use <code>t!qr bypasser</code>.</li>
-        <li>Always verify issues before claiming they are &apos;known bugs.&apos; Don&apos;t guess.</li>
+        <li>Do not assist bypasser users who skipped the work.ink link - use <code>t!qr bypasser</code>.</li>
+        <li>Always verify issues before claiming they are &quot;known bugs.&quot; Do not guess.</li>
       </ul>
       <InfoBox type="warning">
-        <strong>Key Scam Warning:</strong> If someone asks you to &quot;give them a key&quot; or says &quot;the system is down, can you give me one?&quot; — refuse and close the ticket. We cannot and do not generate keys manually.
+        <strong>Key Scam Warning:</strong> If someone asks you to &quot;give them a key&quot; or says &quot;the system is down, can you give me one?&quot; - refuse and close the ticket. We cannot and do not generate keys manually.
       </InfoBox>
       <h2 className="guide-section-title">Blacklist Policy</h2>
       <p className="guide-p">Users who repeatedly open tickets for dismissed issues, abuse staff, or are caught bypassing the key system may be blacklisted. Blacklisting must be approved by a Moderator or above. Do not blacklist users unilaterally.</p>
       <h2 className="guide-section-title">Crash / Downtime Policy</h2>
       <InfoBox type="info">
-        <strong>Crashes:</strong> We are currently not working on crash/freeze issues. Use <code>t!qr crash</code> to inform users and close the ticket. Do not open internal tickets for these — more tickets will not speed up the fix.
+        <strong>Crashes:</strong> We are currently not working on crash/freeze issues. Use <code>t!qr crash</code> to inform users and close the ticket. Do not open internal tickets for these - more tickets will not speed up the fix.
       </InfoBox>
       <p className="guide-p">During Madium downtime, only Madius External is being supported. Use <code>t!qr down</code> to inform users and redirect them appropriately.</p>
-      <h2 className="guide-section-title">Privacy & Data</h2>
+      <h2 className="guide-section-title">Privacy &amp; Data</h2>
       <ul className="guide-ul">
         <li>Never ask for or store a user&apos;s real name, address, or payment information.</li>
         <li>Logs shared for diagnostic purposes (like <code>Madium_Analysis.txt</code>) should be treated as confidential.</li>
@@ -335,10 +334,10 @@ function TopicDiagnostics({ copiedKey, handleCopy }: { copiedKey: string | null;
       </div>
       <h2 className="guide-section-title">What this asks the user</h2>
       <ol className="guide-ol">
-        <li><strong>Is their Windows account an administrator?</strong> — Many fixes require admin rights. Non-admin accounts will fail silently.</li>
-        <li><strong>Do they know what an exclusion is?</strong> — If yes, have they added Madium to their antivirus exclusions?</li>
-        <li><strong>Is Roblox open or closed when clicking &quot;Attach&quot;?</strong> — And which launcher are they using (default, Bloxstrap, Fishstrap)?</li>
-        <li><strong>Do they have antivirus software installed?</strong> — Even if disabled, some AVs (Kaspersky, McAfee, Malwarebytes) intercept processes.</li>
+        <li><strong>Is their Windows account an administrator?</strong> - Many fixes require admin rights. Non-admin accounts will fail silently.</li>
+        <li><strong>Do they know what an exclusion is?</strong> - If yes, have they added Madium to their antivirus exclusions?</li>
+        <li><strong>Is Roblox open or closed when clicking &quot;Attach&quot;?</strong> - And which launcher are they using (default, Bloxstrap, Fishstrap)?</li>
+        <li><strong>Do they have antivirus software installed?</strong> - Even if disabled, some AVs (Kaspersky, McAfee, Malwarebytes) intercept processes.</li>
       </ol>
       <InfoBox type="tip">
         <strong>Tip:</strong> Based on their answers, you can jump directly to the right guide section. Admin account + Kaspersky = go to Antivirus guide. No admin = solve that first before anything else.
@@ -358,7 +357,7 @@ function TopicDiagnostics({ copiedKey, handleCopy }: { copiedKey: string | null;
           <span>Roblox open when attaching</span><span>Ask them to close Roblox first, then try again</span>
         </div>
         <div className="guide-dt-row">
-          <span>Using Bloxstrap / Fishstrap</span><span>Try default Roblox or an alternative launcher — see Roblox guide</span>
+          <span>Using Bloxstrap / Fishstrap</span><span>Try default Roblox or an alternative launcher - see Roblox guide</span>
         </div>
         <div className="guide-dt-row">
           <span>No AV, no known issues</span><span>Proceed to Universal Clean Fix</span>
@@ -371,7 +370,7 @@ function TopicDiagnostics({ copiedKey, handleCopy }: { copiedKey: string | null;
 function TopicKeySystem({ copiedKey, handleCopy }: { copiedKey: string | null; handleCopy: (k: string, t: string) => void }) {
   return (
     <div className="guide-topic-content">
-      <h1 className="guide-h1">Key Issues & Work.ink Fix</h1>
+      <h1 className="guide-h1">Key Issues &amp; Work.ink Fix</h1>
       <p className="guide-p">
         Key-related tickets are one of the most common. There are two distinct situations: users who cannot complete the work.ink link, and users who think there is a key system bug.
       </p>
@@ -395,13 +394,13 @@ function TopicKeySystem({ copiedKey, handleCopy }: { copiedKey: string | null; h
         <Step num={4}>Transfer the download link or file to your PC.</Step>
       </div>
       <InfoBox type="info">
-        The download links are also available via the bot: <code>t!qr dl</code> — Workink and Lootlabs links are both listed there.
+        The download links are also available via the bot: <code>t!qr dl</code> - Workink and Lootlabs links are both listed there.
       </InfoBox>
       <div className="guide-qr-usage" style={{ marginTop: 12 }}>
         <CmdBadge cmd="t!qr dl" copiedKey={copiedKey} onCopy={handleCopy} />
         <span className="guide-qr-usage-label">Send direct download links</span>
       </div>
-      <h2 className="guide-section-title">Madius External — Lost Key</h2>
+      <h2 className="guide-section-title">Madius External - Lost Key</h2>
       <p className="guide-p">If a user using Madius External says they lost their key, they can retrieve it easily:</p>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr key-ext" copiedKey={copiedKey} onCopy={handleCopy} />
@@ -409,7 +408,7 @@ function TopicKeySystem({ copiedKey, handleCopy }: { copiedKey: string | null; h
       </div>
       <div className="guide-steps">
         <Step num={1}>Open the Madius External installer again.</Step>
-        <Step num={2}>Click <strong>&quot;Get Key&quot;</strong> in the installer — it will retrieve your existing key automatically.</Step>
+        <Step num={2}>Click <strong>&quot;Get Key&quot;</strong> in the installer - it will retrieve your existing key automatically.</Step>
       </div>
     </div>
   );
@@ -428,7 +427,7 @@ function TopicUniversal({ copiedKey, handleCopy }: { copiedKey: string | null; h
       <h2 className="guide-section-title">Step-by-Step</h2>
       <div className="guide-steps">
         <Step num={1}>
-          <strong>Add antivirus exclusions</strong> — Before touching Madium files, set up exclusions to prevent the AV from blocking or quarantining files.
+          <strong>Add antivirus exclusions</strong> - Before touching Madium files, set up exclusions to prevent the AV from blocking or quarantining files.
           <div className="guide-qr-usage" style={{ marginTop: 8 }}>
             <CmdBadge cmd="t!qr exclude" copiedKey={copiedKey} onCopy={handleCopy} />
             <span className="guide-qr-usage-label">Send exclusions guide</span>
@@ -436,22 +435,22 @@ function TopicUniversal({ copiedKey, handleCopy }: { copiedKey: string | null; h
           <p style={{ fontSize: 13, marginTop: 6, color: 'var(--fg-3)' }}>Folders to exclude: <code>%LocalAppData%/Madium/Bin</code>, <code>C:/Users/%username%/Downloads</code>, <code>%temp%</code></p>
         </Step>
         <Step num={2}>
-          <strong>Uninstall Madium completely</strong> — Open &quot;Apps &amp; Features&quot; in Windows Settings and uninstall Madium. Then delete <code>%LocalAppData%/Madium</code> manually if it still exists.
+          <strong>Uninstall Madium completely</strong> - Open &quot;Apps &amp; Features&quot; in Windows Settings and uninstall Madium. Then delete <code>%LocalAppData%/Madium</code> manually if it still exists.
         </Step>
         <Step num={3}>
-          <strong>Download a fresh copy</strong> — Use the download link from <code>t!qr dl</code> or from the work.ink link.
+          <strong>Download a fresh copy</strong> - Use the download link from <code>t!qr dl</code> or from the work.ink link.
           <div className="guide-qr-usage" style={{ marginTop: 8 }}>
             <CmdBadge cmd="t!qr dl" copiedKey={copiedKey} onCopy={handleCopy} />
           </div>
         </Step>
         <Step num={4}>
-          <strong>Install as administrator</strong> — Right-click the installer and select &quot;Run as administrator.&quot;
+          <strong>Install as administrator</strong> - Right-click the installer and select &quot;Run as administrator.&quot;
         </Step>
         <Step num={5}>
-          <strong>Test immediately after install</strong> — Open Madium before rebooting. If it works, the issue was the old installation.
+          <strong>Test immediately after install</strong> - Open Madium before rebooting. If it works, the issue was the old installation.
         </Step>
         <Step num={6}>
-          <strong>If still failing</strong> — Move to the Bin Replacement guide or Dependencies install guide.
+          <strong>If still failing</strong> - Move to the Bin Replacement guide or Dependencies install guide.
         </Step>
       </div>
     </div>
@@ -463,7 +462,7 @@ function TopicBinReplacement({ copiedKey, handleCopy }: { copiedKey: string | nu
     <div className="guide-topic-content">
       <h1 className="guide-h1">Corrupted Bin Replacement</h1>
       <p className="guide-p">
-        Sometimes the <code>Bin</code> folder inside Madium&apos;s AppData directory gets corrupted — this causes Madium to fail silently or crash immediately after launch. Replacing the Bin folder resolves this.
+        Sometimes the <code>Bin</code> folder inside Madium&apos;s AppData directory gets corrupted - this causes Madium to fail silently or crash immediately after launch. Replacing the Bin folder resolves this.
       </p>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr bin" copiedKey={copiedKey} onCopy={handleCopy} />
@@ -484,10 +483,10 @@ function TopicBinReplacement({ copiedKey, handleCopy }: { copiedKey: string | nu
           </a>
         </Step>
         <Step num={4}>
-          Drag and drop the extracted <strong>Bin</strong> folder into the <code>%localappdata%/Madium</code> directory — the same place you deleted it from.
+          Drag and drop the extracted <strong>Bin</strong> folder into the <code>%localappdata%/Madium</code> directory - the same place you deleted it from.
         </Step>
         <Step num={5}>
-          Launch Madium and test. If the Bin folder was missing entirely (no folder existed before), the same steps apply — just place the new folder there.
+          Launch Madium and test. If the Bin folder was missing entirely (no folder existed before), the same steps apply - just place the new folder there.
         </Step>
       </div>
       <InfoBox type="info">
@@ -500,30 +499,30 @@ function TopicBinReplacement({ copiedKey, handleCopy }: { copiedKey: string | nu
 function TopicCloudflare({ copiedKey, handleCopy }: { copiedKey: string | null; handleCopy: (k: string, t: string) => void }) {
   return (
     <div className="guide-topic-content">
-      <h1 className="guide-h1">Network & Cloudflare WARP</h1>
+      <h1 className="guide-h1">Network &amp; Cloudflare WARP</h1>
       <p className="guide-p">
-        Connection issues — where Madium loads but cannot contact its servers — are often fixed by changing the network path. Cloudflare WARP is the recommended first attempt.
+        Connection issues - where Madium loads but cannot contact its servers - are often fixed by changing the network path. Cloudflare WARP is the recommended first attempt.
       </p>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr vpn" copiedKey={copiedKey} onCopy={handleCopy} />
         <span className="guide-qr-usage-label">Send the full WARP/DNS guide</span>
       </div>
-      <h2 className="guide-section-title">Method 1 — Cloudflare WARP</h2>
+      <h2 className="guide-section-title">Method 1 - Cloudflare WARP</h2>
       <div className="guide-steps">
         <Step num={1}>
           Download and install WARP from <a href="https://one.one.one.one" target="_blank" rel="noopener noreferrer" className="guide-inline-link">one.one.one.one</a>.
         </Step>
         <Step num={2}>
-          Once installed, open WARP and connect. Select <strong>Traffic and DNS (UDP)</strong> mode — not the &quot;WARP&quot; only mode.
+          Once installed, open WARP and connect. Select <strong>Traffic and DNS (UDP)</strong> mode - not the &quot;WARP&quot; only mode.
         </Step>
         <Step num={3}>
           Launch Madium and test the connection.
         </Step>
       </div>
       <InfoBox type="tip">
-        If WARP doesn&apos;t help, ask the user to try any other VPN of their choice. Sometimes the ISP is the root cause of the block.
+        If WARP does not help, ask the user to try any other VPN of their choice. Sometimes the ISP is the root cause of the block.
       </InfoBox>
-      <h2 className="guide-section-title">Method 2 — Manual DNS (Windows 11 Only)</h2>
+      <h2 className="guide-section-title">Method 2 - Manual DNS (Windows 11 Only)</h2>
       <p className="guide-p">For users who prefer not to use a VPN, changing the DNS resolver can resolve connection issues.</p>
       <div className="guide-steps">
         <Step num={1}>Open <strong>Windows Settings</strong> → <strong>Network &amp; Internet</strong> → <strong>Ethernet</strong>.</Step>
@@ -551,12 +550,12 @@ function TopicAntivirus({ copiedKey, handleCopy, qrs }: { copiedKey: string | nu
 
   return (
     <div className="guide-topic-content">
-      <h1 className="guide-h1">{SHIELD_SVG} Antivirus & Firewall Rules</h1>
+      <h1 className="guide-h1">{SHIELD_SVG} Antivirus &amp; Firewall Rules</h1>
       <p className="guide-p">
-        Antivirus software is the #1 cause of Madium not working. Antivirus programs quarantine or block Madium&apos;s core files because they are flagged as suspicious — this is a false positive. The fix is adding exclusions.
+        Antivirus software is the #1 cause of Madium not working. Antivirus programs quarantine or block Madium&apos;s core files because they are flagged as suspicious - this is a false positive. The fix is adding exclusions.
       </p>
       <h2 className="guide-section-title">Windows Security Exclusions</h2>
-      <p className="guide-p">Start here for most users — they will be running Windows Defender.</p>
+      <p className="guide-p">Start here for most users - they will be running Windows Defender.</p>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr exclude" copiedKey={copiedKey} onCopy={handleCopy} />
         <span className="guide-qr-usage-label">Send the full exclusions guide</span>
@@ -582,7 +581,7 @@ function TopicAntivirus({ copiedKey, handleCopy, qrs }: { copiedKey: string | nu
         </div>
       )}
       <h2 className="guide-section-title" style={{ marginTop: 28 }}>Windows Firewall Rules</h2>
-      <p className="guide-p">If antivirus exclusions don&apos;t fix it, the Windows Firewall may be blocking Madium&apos;s network connections. You need to allow inbound and outbound traffic for the three Madium executables.</p>
+      <p className="guide-p">If antivirus exclusions do not fix it, the Windows Firewall may be blocking Madium&apos;s network connections. You need to allow inbound and outbound traffic for the three Madium executables.</p>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr firewall" copiedKey={copiedKey} onCopy={handleCopy} />
         <span className="guide-qr-usage-label">Send the full firewall guide</span>
@@ -608,7 +607,7 @@ function TopicAntivirus({ copiedKey, handleCopy, qrs }: { copiedKey: string | nu
         </div>
       )}
       <InfoBox type="warning">
-        <strong>Third-party AV (Kaspersky, McAfee, Malwarebytes, etc.):</strong> Windows Security exclusions do NOT apply to these. The user must open their specific AV software and add the same folder paths as exclusions within that AV&apos;s settings. Every AV interface is different — advise the user to Google their specific AV + &quot;add folder exclusion&quot; if they are unsure.
+        <strong>Third-party AV (Kaspersky, McAfee, Malwarebytes, etc.):</strong> Windows Security exclusions do NOT apply to these. The user must open their specific AV software and add the same folder paths as exclusions within that AV&apos;s settings. Every AV interface is different - advise the user to Google their specific AV + &quot;add folder exclusion&quot; if they are unsure.
       </InfoBox>
     </div>
   );
@@ -620,12 +619,12 @@ function TopicRoblox({ copiedKey, handleCopy, qrs }: { copiedKey: string | null;
 
   return (
     <div className="guide-topic-content">
-      <h1 className="guide-h1">Roblox Crashes & Launchers</h1>
+      <h1 className="guide-h1">Roblox Crashes &amp; Launchers</h1>
       <p className="guide-p">
         Madium attaches to the Roblox process. If Roblox itself is crashing, outdated, or using an incompatible launcher, Madium will appear to fail. This guide covers launcher alternatives and the RDD downgrade method.
       </p>
       <InfoBox type="warning">
-        <strong>Crash policy:</strong> If the user is reporting Madium crashes or Roblox crashes specifically caused by Madium — we are not currently fixing those. Use <code>t!qr crash</code> and close the ticket.
+        <strong>Crash policy:</strong> If the user is reporting Madium crashes or Roblox crashes specifically caused by Madium - we are not currently fixing those. Use <code>t!qr crash</code> and close the ticket.
       </InfoBox>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr crash" copiedKey={copiedKey} onCopy={handleCopy} />
@@ -661,7 +660,7 @@ function TopicRoblox({ copiedKey, handleCopy, qrs }: { copiedKey: string | null;
         <Step num={1}>
           Go to <a href="https://rdd.weao.xyz" target="_blank" rel="noopener noreferrer" className="guide-inline-link">rdd.weao.xyz</a>.
         </Step>
-        <Step num={2}>Click <strong>Download Latest</strong> — or pick a specific Roblox version that Madium supports.</Step>
+        <Step num={2}>Click <strong>Download Latest</strong> - or pick a specific Roblox version that Madium supports.</Step>
         <Step num={3}>Wait for the site to provide a ZIP file.</Step>
         <Step num={4}>
           Extract the contents to <code>C:\Users\&lt;username&gt;\AppData\Local\Roblox\Versions</code>. If that folder doesn&apos;t exist, create it. Rename the extracted folder so it looks like <code>version-xxx</code> (remove the <code>WEAO-Live-WindowsPlayer-</code> prefix).
@@ -696,17 +695,17 @@ function TopicWebview({ copiedKey, handleCopy }: { copiedKey: string | null; han
       </div>
       <h2 className="guide-section-title">Fix: Manually Repair EdgeWebView</h2>
       <InfoBox type="info">
-        This fix works by copying the existing Microsoft Edge installation and renaming it to EdgeWebView — effectively replacing the corrupted WebView2 with a working copy.
+        This fix works by copying the existing Microsoft Edge installation and renaming it to EdgeWebView - effectively replacing the corrupted WebView2 with a working copy.
       </InfoBox>
       <div className="guide-steps">
         <Step num={1}>Navigate to <code>C:\Program Files (x86)\Microsoft</code>.</Step>
         <Step num={2}>Delete the folder named <strong>EdgeWebView</strong>.</Step>
-        <Step num={3}>Copy the <strong>Edge</strong> folder in that same directory — you will now have a folder called <strong>Edge - Copy</strong>.</Step>
+        <Step num={3}>Copy the <strong>Edge</strong> folder in that same directory - you will now have a folder called <strong>Edge - Copy</strong>.</Step>
         <Step num={4}>Rename <strong>Edge - Copy</strong> to <strong>EdgeWebView</strong>.</Step>
         <Step num={5}>Launch Madium. It should now load correctly.</Step>
       </div>
       <InfoBox type="tip">
-        If the user doesn&apos;t have an <code>Edge</code> folder at all, they should first install Microsoft Edge WebView2 Runtime. See the Dependencies guide.
+        If the user does not have an <code>Edge</code> folder at all, they should first install Microsoft Edge WebView2 Runtime. See the Dependencies guide.
       </InfoBox>
     </div>
   );
@@ -717,7 +716,7 @@ function TopicDependencies({ copiedKey, handleCopy }: { copiedKey: string | null
     <div className="guide-topic-content">
       <h1 className="guide-h1">Required Dependencies</h1>
       <p className="guide-p">
-        Madium requires several system libraries to run. Missing or outdated dependencies cause a wide range of failures — from crashes at launch to specific features not working. Always have the user install all of these before more specific debugging.
+        Madium requires several system libraries to run. Missing or outdated dependencies cause a wide range of failures - from crashes at launch to specific features not working. Always have the user install all of these before more specific debugging.
       </p>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr dep" copiedKey={copiedKey} onCopy={handleCopy} />
@@ -760,7 +759,7 @@ function TopicAnalysis({ copiedKey, handleCopy, qrs }: { copiedKey: string | nul
     <div className="guide-topic-content">
       <h1 className="guide-h1">Generating Analysis Logs</h1>
       <p className="guide-p">
-        When standard fixes haven&apos;t worked and you need to understand what is wrong with a user&apos;s system, request an Analysis Log. This runs a batch script that collects system information, Madium logs, and relevant data into a single text file.
+        When standard fixes have not worked and you need to understand what is wrong with a user&apos;s system, request an Analysis Log. This runs a batch script that collects system information, Madium logs, and relevant data into a single text file.
       </p>
       <div className="guide-qr-usage">
         <CmdBadge cmd="t!qr anal" copiedKey={copiedKey} onCopy={handleCopy} />
@@ -783,14 +782,14 @@ function TopicAnalysis({ copiedKey, handleCopy, qrs }: { copiedKey: string | nul
         <Step num={4}>Drag and drop <strong>Madium_Analysis.txt</strong> into the support ticket.</Step>
       </div>
       <InfoBox type="info">
-        The analysis file is safe. It collects system info relevant to diagnosing Madium — nothing sensitive like passwords or personal files. When reviewing it, look for signs of antivirus deletions, missing dependencies, or failed service starts.
+        The analysis file is safe. It collects system info relevant to diagnosing Madium - nothing sensitive like passwords or personal files. When reviewing it, look for signs of antivirus deletions, missing dependencies, or failed service starts.
       </InfoBox>
       <h2 className="guide-section-title">Interpreting the Log</h2>
       <ul className="guide-ul">
-        <li>Look for <strong>deleted or quarantined files</strong> — indicates AV interference. → Send exclusions guide.</li>
-        <li>Look for <strong>missing DLL errors</strong> — indicates missing dependencies. → Send dep guide.</li>
-        <li>Look for <strong>service failures</strong> or <strong>access denied</strong> entries — indicates permission issues. Verify admin account.</li>
-        <li>Look for <strong>network timeouts</strong> or <strong>connection refused</strong> — indicates network/firewall issue. → Send WARP guide.</li>
+        <li>Look for <strong>deleted or quarantined files</strong> - indicates AV interference. → Send exclusions guide.</li>
+        <li>Look for <strong>missing DLL errors</strong> - indicates missing dependencies. → Send dep guide.</li>
+        <li>Look for <strong>service failures</strong> or <strong>access denied</strong> entries - indicates permission issues. Verify admin account.</li>
+        <li>Look for <strong>network timeouts</strong> or <strong>connection refused</strong> - indicates network/firewall issue. → Send WARP guide.</li>
       </ul>
     </div>
   );
