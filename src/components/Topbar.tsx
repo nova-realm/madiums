@@ -34,13 +34,13 @@ const SEARCH_SVG = (
   </svg>
 );
 
-// Windows 11 4-tile logo
-const WIN11_SVG = (
-  <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" aria-hidden style={{ display: 'inline-block', verticalAlign: '-1px' }}>
-    <rect x="1" y="1" width="6.2" height="6.2" rx="0.5" />
-    <rect x="8.8" y="1" width="6.2" height="6.2" rx="0.5" />
-    <rect x="1" y="8.8" width="6.2" height="6.2" rx="0.5" />
-    <rect x="8.8" y="8.8" width="6.2" height="6.2" rx="0.5" />
+const CHANGELOG_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }} aria-hidden>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
   </svg>
 );
 
@@ -117,16 +117,34 @@ export default function Topbar({ activePage, config }: TopbarProps) {
     }
   }
 
+  function openChangelog() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('open-changelog'));
+    }
+  }
+
   return (
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <Link href="/" className="brand">
-            <Image src="/assets/logo-support.png" alt="" width={24} height={24} className="brand-img" priority />
-            <span className="brand-name">Madium</span>
-            <span className="brand-sep">/</span>
-            <span className="brand-sub">Support Desk</span>
-          </Link>
+          <div className="brand-group">
+            <button
+              type="button"
+              className="topbar-changelog-icon-btn"
+              onClick={openChangelog}
+              title="Changelog & Updates"
+              aria-label="Open Changelog"
+            >
+              {CHANGELOG_SVG}
+            </button>
+
+            <Link href="/" className="brand">
+              <Image src="/assets/logo-support.png" alt="" width={24} height={24} className="brand-img" priority />
+              <span className="brand-name">Madium</span>
+              <span className="brand-sep">/</span>
+              <span className="brand-sub">Support Desk</span>
+            </Link>
+          </div>
 
           <div className="topbar-divider" />
 
@@ -152,8 +170,7 @@ export default function Topbar({ activePage, config }: TopbarProps) {
             >
               {SEARCH_SVG}
               <span className="search-btn-label">Search…</span>
-              <kbd className="search-btn-kbd">
-                <span className="win-icon">{WIN11_SVG}</span>
+              <kbd className="search-btn-kbd hide-on-mobile">
                 <span>Ctrl K</span>
               </kbd>
             </button>
@@ -228,10 +245,6 @@ export default function Topbar({ activePage, config }: TopbarProps) {
             >
               {SEARCH_SVG}
               <span>Quick Search &amp; Switcher</span>
-              <kbd className="search-btn-kbd">
-                <span className="win-icon">{WIN11_SVG}</span>
-                <span>Ctrl K</span>
-              </kbd>
             </button>
 
             <div className="mobile-nav-section-title">Navigation</div>

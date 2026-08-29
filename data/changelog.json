@@ -1,6 +1,29 @@
 {
-  "timestamp": "Today",
   "title": "Changelog & Updates",
-  "message": "1. Added dedicated **[Support Guide](/guide)** covering team protocols, work.ink fixes, bin replacements, and crash playbooks.\n2. Added full rendering support for videos, images, and downloadable script cards (.bat, .exe, .zip) in the **[QRs page](/qrs)**.\n3. Added an Easter Egg. find it!\n4. Optimizations for API, now the bot should be faster.",
-  "footerNote": "This is a continuous project. Feel free to contact me for new features or bug reports."
+  "footerNote": "This is a continuous project. Feel free to contact me for new features or bug reports.",
+  "entries": [
+    {
+      "date": "August 29, 2026",
+      "items": [
+        "Rewrote the Support Guide with full hand-written documentation for every topic, no more auto-generated placeholders.",
+        "Guide pages now include step-by-step instructions, real download links, videos, and images pulled directly from the bot resources.",
+        "Changelog now supports multiple dated sections so you can track what changed and when.",
+        "Changelog notification now shows as a proper modal popup, visible once per session, stored in your browser.",
+        "Topbar changelog icon added, click it anytime to re-open the changelog.",
+        "Discord custom emoji rendering added to the QRs page (e.g. <:bao:1539473212394442773> now shows as the actual emoji).",
+        "Mobile search bar added to the QRs page for better phone usability.",
+        "Page transitions smoothed out, reduced the freezing/popping effect when navigating between pages.",
+        "Bot API fix: attachments are no longer duplicated in the message text."
+      ]
+    },
+    {
+      "date": "August 20, 2026",
+      "items": [
+        "Added dedicated Support Guide covering team protocols, work.ink fixes, bin replacements, and crash playbooks.",
+        "Added full rendering support for videos, images, and downloadable script cards (.bat, .exe, .zip) in the QRs page.",
+        "Added an Easter Egg. Find it!",
+        "Optimizations for API. the bot should be faster."
+      ]
+    }
+  ]
 }

@@ -31,6 +31,13 @@ export default function ChangelogBubble({ data, config }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const avatarFile = config.footerAvatar.split('/').pop();
 
+  // Support new multi-entry format, fallback to legacy message field
+  const latestEntry = data.entries && data.entries.length > 0 ? data.entries[0] : null;
+  const displayDate = latestEntry?.date ?? data.timestamp ?? 'Today';
+  const displayLines = latestEntry
+    ? latestEntry.items.slice(0, 3)
+    : (data.message ?? '').split('\n').filter(Boolean);
+
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
@@ -48,8 +55,8 @@ export default function ChangelogBubble({ data, config }: Props) {
           <Image src={`/assets/${avatarFile}`} alt="" width={28} height={28} className="bubble-avatar" />
           <div>
             <span className="bubble-name">{config.footerName}</span>
-            <span className="bubble-time">{data.timestamp}</span>
-            <p className="bubble-text">{data.message.split('\n').map((line, i) => (
+            <span className="bubble-time">{displayDate}</span>
+            <p className="bubble-text">{displayLines.map((line, i) => (
               <span key={i}>{line}<br /></span>
             ))}</p>
             <a

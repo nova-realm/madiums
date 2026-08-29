@@ -4,8 +4,10 @@ import './globals.css';
 import Footer from '@/components/Footer';
 import EasterEgg from '@/components/EasterEgg';
 import SpotlightSearch from '@/components/SpotlightSearch';
+import ChangelogModal from '@/components/ChangelogModal';
 import config from '@data/config.json';
 import eggData from '@data/easter-egg.json';
+import changelogData from '@data/changelog.json';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -33,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Footer config={config} />
         <EasterEgg data={eggData} config={config} />
         <SpotlightSearch />
+        <ChangelogModal data={changelogData} config={config} />
       </body>
     </html>
   );

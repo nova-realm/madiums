@@ -158,7 +158,12 @@ export async function downloadAndSaveDiscordAttachment(
   }
 
   try {
-    const res = await fetch(discordUrl);
+    const res = await fetch(discordUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
     if (!res.ok) {
       console.warn(`Failed to fetch Discord attachment from ${discordUrl}: ${res.status} ${res.statusText}`);
       return discordUrl;
@@ -407,8 +412,22 @@ export function extractAttachmentUrls(input: any): string[] {
   return purgeDiscordCdnUrlsIfRehosted(Array.from(urls));
 }
 
+let memoryCacheQRs: QR[] | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 20 * 1000; // 20 seconds fast memory cache
+
+export function invalidateQRsCache(): void {
+  memoryCacheQRs = null;
+  lastCacheTime = 0;
+}
+
 /** Read all QRs by GET fetching from live Railway API, with fallback to local disk */
-export async function getQRs(): Promise<QR[]> {
+export async function getQRs(forceRefresh = false): Promise<QR[]> {
+  const now = Date.now();
+  if (!forceRefresh && memoryCacheQRs && now - lastCacheTime < CACHE_TTL_MS) {
+    return memoryCacheQRs;
+  }
+
   try {
     const res = await fetch(LIVE_RAILWAY_API_URL, {
       cache: 'no-store',
@@ -432,6 +451,9 @@ export async function getQRs(): Promise<QR[]> {
             enabled: d.enabled !== false,
           };
         });
+
+        memoryCacheQRs = liveQRs;
+        lastCacheTime = Date.now();
 
         // Persist fresh live copy to local disk asynchronously
         saveQRs(liveQRs).catch(() => {});
@@ -484,6 +506,9 @@ export async function getQRs(): Promise<QR[]> {
 
 /** Save QRs array to all relevant data directories */
 export async function saveQRs(qrs: QR[]): Promise<void> {
+  memoryCacheQRs = qrs;
+  lastCacheTime = Date.now();
+
   const content = JSON.stringify(qrs, null, 2);
   const paths = getStoragePaths();
 

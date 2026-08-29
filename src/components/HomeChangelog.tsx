@@ -15,11 +15,18 @@ const DISCORD_SVG = (
   </svg>
 );
 
+interface ChangelogEntry {
+  date: string;
+  items: string[];
+}
+
 interface ChangelogData {
-  timestamp: string;
   title?: string;
-  message: string;
   footerNote?: string;
+  entries?: ChangelogEntry[];
+  // Legacy single-entry fields
+  timestamp?: string;
+  message?: string;
 }
 
 interface Props {
@@ -29,7 +36,14 @@ interface Props {
 
 export default function HomeChangelog({ data, config }: Props) {
   const avatarFile = config.footerAvatar.split('/').pop() || 'logo-support.png';
-  const bodyHtml = mdToHtml(data.message);
+
+  // Build display content from new entries format or fall back to legacy message
+  const latestEntry = data.entries && data.entries.length > 0 ? data.entries[0] : null;
+  const displayDate = latestEntry?.date ?? data.timestamp ?? 'Today';
+  const displayMessage = latestEntry
+    ? latestEntry.items.map((item, i) => `${i + 1}. ${item}`).join('\n')
+    : (data.message ?? '');
+  const bodyHtml = mdToHtml(displayMessage);
 
   return (
     <div className="home-changelog-card">
@@ -55,7 +69,7 @@ export default function HomeChangelog({ data, config }: Props) {
           <div className="dc-msg-meta">
             <span className="dc-msg-author">{config.footerName}</span>
             <span className="dc-msg-badge">DEV</span>
-            <span className="dc-msg-time">{data.timestamp}</span>
+            <span className="dc-msg-time">{displayDate}</span>
           </div>
 
           <div

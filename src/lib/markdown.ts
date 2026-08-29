@@ -168,6 +168,15 @@ function inline(raw: string): string {
 
   let s = raw;
 
+  // 0. Discord custom emojis: <:name:id> or <a:name:id>
+  s = s.replace(/<(a)?:([a-zA-Z0-9_~]+):([0-9]+)>/g, (_, anim, name, id) => {
+    const ext = anim ? 'gif' : 'png';
+    const emojiUrl = `https://cdn.discordapp.com/emojis/${id}.${ext}?size=48&quality=lossless`;
+    return pushToken(
+      `<img class="dc-custom-emoji" src="${escHtml(emojiUrl)}" alt=":${escHtml(name)}:" title=":${escHtml(name)}:" loading="lazy" />`
+    );
+  });
+
   // 1. Markdown images: ![alt](url)
   s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/gi, (_, alt, rawUrl) => {
     const url = rawUrl.trim();

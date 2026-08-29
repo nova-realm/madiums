@@ -31,10 +31,18 @@ export interface StatusData {
   support: SupportStatus;
 }
 
+export interface ChangelogEntry {
+  date: string;
+  items: string[];
+}
+
 export interface ChangelogData {
-  timestamp: string;
-  message: string;
+  title?: string;
   footerNote?: string;
+  entries?: ChangelogEntry[];
+  // Legacy single-entry fields
+  timestamp?: string;
+  message?: string;
 }
 
 export interface EasterEggData {

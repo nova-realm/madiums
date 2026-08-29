@@ -177,10 +177,8 @@ export default function SpotlightSearch() {
       if (qr.id.toLowerCase() === 'nigga') {
         playEasterEggSound();
       }
-      const ok = await copyText(qr.text || '');
-      if (ok) {
-        showToast(`Copied text for "${qr.title}"`);
-      }
+      setOpen(false);
+      router.push(`/qrs?id=${encodeURIComponent(qr.id)}`);
     }
   }
 
@@ -317,13 +315,13 @@ export default function SpotlightSearch() {
                         <div className="spotlight-item-actions">
                           <button
                             type="button"
-                            className="spotlight-copy-btn"
+                            className="spotlight-open-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleSelect({ type: 'qr', data: qr });
                             }}
                           >
-                            Copy Text
+                            Open QR {ARROW_RIGHT_SVG}
                           </button>
                         </div>
                       </div>
@@ -363,11 +361,11 @@ export default function SpotlightSearch() {
 
         {/* Footer shortcuts */}
         <div className="spotlight-footer">
-          <div className="spotlight-shortcuts">
+          <div className="spotlight-shortcuts hide-on-mobile">
             <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
-            <span><kbd>Enter</kbd> Select / Copy Text</span>
+            <span><kbd>Enter</kbd> Open / Select</span>
             <span><kbd>Shift</kbd>+<kbd>Enter</kbd> Copy Command</span>
-            <span className="spotlight-shortcut-hide-mobile"><kbd>Ctrl</kbd>+<kbd>K</kbd> Toggle</span>
+            <span><kbd>Esc</kbd> Close</span>
           </div>
           {toast && <span className="spotlight-toast">{toast}</span>}
         </div>
